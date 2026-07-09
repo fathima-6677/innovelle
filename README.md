@@ -1,266 +1,182 @@
-A full Mermaid diagram is maintained at `/docs/architecture.mmd`, reflecting the AWS service map below.
+# 🛡️ AutiGuard: Cloud-Native AI Safety & Emotional Monitoring Caregiver Console
 
-| Concern | AWS Service |
-|---|---|
-| Device ingestion | AWS IoT Core (MQTT topics per device) |
-| Stream processing / fan-out | Amazon Kinesis Data Streams + Firehose (raw archive to S3) |
-| Event-driven compute | AWS Lambda (geofence checks, fall detection, alert dispatch) |
-| ML model hosting | Amazon SageMaker (real-time endpoints) |
-| Optional NLP | Amazon Bedrock |
-| Primary data store | Amazon DynamoDB (single-table design) |
-| Object storage | Amazon S3 (audio embeddings, reports, QR images) |
-| Auth | Amazon Cognito (User Pools + Identity Pools, RBAC) |
-| API layer | Amazon API Gateway (REST + WebSocket) fronting FastAPI on ECS Fargate |
-| Maps / geolocation | Amazon Location Service |
-| Notifications | Amazon SNS, Amazon Pinpoint (SMS/push/OTP) |
-| Secrets / keys | AWS KMS + AWS Secrets Manager |
-| Monitoring | Amazon CloudWatch + AWS X-Ray |
-| CDN / hosting | Amazon CloudFront + AWS Amplify Hosting |
-| IaC | AWS CDK (TypeScript) |
-| CI/CD | GitHub Actions → AWS CodeDeploy / CDK deploy |
-| Compliance / audit | AWS CloudTrail, AWS Config |
+[![AWS Cloud](https://img.shields.io/badge/AWS-ap--south--1-FF9900?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/)
+[![React](https://img.shields.io/badge/Frontend-React%20%7C%20TypeScript-blue?style=flat-square&logo=react)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Containerized](https://img.shields.io/badge/Runtime-Docker%20%7C%20Rancher-2496ED?style=flat-square&logo=docker)](https://rancherdesktop.io/)
+[![Security Grade](https://img.shields.io/badge/Security-AWS%20KMS%20PII%20Encryption-green?style=flat-square)](https://aws.amazon.com/kms/)
 
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | React 18+ (Vite), TypeScript, TailwindCSS, React Query, Zustand/Redux Toolkit, Recharts/D3 |
-| Backend | FastAPI (Python 3.11+), Pydantic v2, async SQLAlchemy (optional), Uvicorn/Gunicorn |
-| Database | Amazon DynamoDB (primary) + Amazon RDS PostgreSQL (optional, relational reporting only) |
-| Cloud | AWS |
-| AI/ML | Amazon SageMaker, AWS Lambda, Amazon Bedrock (optional) |
-| Auth | Amazon Cognito, JWT, RBAC |
-| Real-time | AWS IoT Core → Kinesis → WebSocket API |
-| IaC | AWS CDK (TypeScript) |
-| CI/CD | GitHub Actions → AWS CodeDeploy / Amplify Hosting + ECS Fargate or Lambda |
-
-## Features
-
-- **Authentication & Access Control** — Cognito login, optional phone OTP (SNS/Pinpoint), roles (`super_admin`, `org_admin`, `caregiver`, `responder`), optional MFA, role-based UI rendering.
-- **Real-Time Dashboard** — live map, vitals strip (heart rate, stress index, battery), color-coded alert feed, historical heatmap with playback.
-- **Geofencing** — draw-on-map CRUD for safe zones, real-time breach evaluation against incoming GPS pings.
-- **AI Stress & Distress Detection** — `/ml/stress-score` and `/ml/distress-classify` endpoints proxying SageMaker; fall detection via lightweight rule+ML hybrid in Lambda.
-- **Dynamic Encrypted QR Identity** — rotating KMS-signed JWT QR tokens; tiered public resolution endpoint; every scan logged and pushed to caregivers in real time.
-- **Panic Alert** — wearable-triggered SNS fan-out (SMS + push + in-app) with configurable escalation to secondary contacts.
-- **Non-Verbal Assist Log** — event-coded need categories rendered as a communication timeline for pattern recognition.
-- **Reporting & Analytics** — weekly/monthly PDF/in-app reports, CSV export with consent enforcement.
-
-## Data Model
-
-DynamoDB single-table design — table name: `AutiGuardCore`
-
-| PK | SK | Entity | Notes |
-|---|---|---|---|
-| `ORG#<orgId>` | `PROFILE` | Organization | name, plan tier |
-| `ORG#<orgId>` | `USER#<userId>` | Caregiver/Admin | role, contact info |
-| `WEARER#<wearerId>` | `PROFILE` | Wearer profile | name, DOB, medical notes, QR tiering rules |
-| `WEARER#<wearerId>` | `TELEMETRY#<ISO8601>` | Time-series ping | HR, GPS, accel summary, stress_index |
-| `WEARER#<wearerId>` | `ALERT#<ISO8601>` | Alert event | type, severity, ack status |
-| `WEARER#<wearerId>` | `GEOFENCE#<fenceId>` | Safe zone | polygon/radius coords |
-| `WEARER#<wearerId>` | `QRSCAN#<ISO8601>` | Scan log | tier resolved, location |
-| `WEARER#<wearerId>` | `COMMLOG#<ISO8601>` | Non-verbal event | category code |
-
-- **GSI1** (`GSI1PK = WEARER#<id>`, `GSI1SK = ALERT type`) — efficient cross-time-range alert queries.
-- **TTL** enabled on raw telemetry (archived to S3 via Firehose before expiry).
-- **DynamoDB Streams** trigger a Lambda for real-time WebSocket push to connected dashboards.
-
-## Repository Structure
-Device (wearable) → AWS IoT Core → Kinesis Data Streams → Lambda (compute/ML) → DynamoDB
-↘ SageMaker (inference)
-DynamoDB Streams → Lambda → WebSocket API (API Gateway) → React Dashboard
-FastAPI (ECS Fargate / Lambda) ← API Gateway (REST) ← React Frontend (Amplify/CloudFront)
-A full Mermaid diagram is maintained at `/docs/architecture.mmd`, reflecting the AWS service map below.
-
-| Concern | AWS Service |
-|---|---|
-| Device ingestion | AWS IoT Core (MQTT topics per device) |
-| Stream processing / fan-out | Amazon Kinesis Data Streams + Firehose (raw archive to S3) |
-| Event-driven compute | AWS Lambda (geofence checks, fall detection, alert dispatch) |
-| ML model hosting | Amazon SageMaker (real-time endpoints) |
-| Optional NLP | Amazon Bedrock |
-| Primary data store | Amazon DynamoDB (single-table design) |
-| Object storage | Amazon S3 (audio embeddings, reports, QR images) |
-| Auth | Amazon Cognito (User Pools + Identity Pools, RBAC) |
-| API layer | Amazon API Gateway (REST + WebSocket) fronting FastAPI on ECS Fargate |
-| Maps / geolocation | Amazon Location Service |
-| Notifications | Amazon SNS, Amazon Pinpoint (SMS/push/OTP) |
-| Secrets / keys | AWS KMS + AWS Secrets Manager |
-| Monitoring | Amazon CloudWatch + AWS X-Ray |
-| CDN / hosting | Amazon CloudFront + AWS Amplify Hosting |
-| IaC | AWS CDK (TypeScript) |
-| CI/CD | GitHub Actions → AWS CodeDeploy / CDK deploy |
-| Compliance / audit | AWS CloudTrail, AWS Config |
-
-## Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Frontend | React 18+ (Vite), TypeScript, TailwindCSS, React Query, Zustand/Redux Toolkit, Recharts/D3 |
-| Backend | FastAPI (Python 3.11+), Pydantic v2, async SQLAlchemy (optional), Uvicorn/Gunicorn |
-| Database | Amazon DynamoDB (primary) + Amazon RDS PostgreSQL (optional, relational reporting only) |
-| Cloud | AWS |
-| AI/ML | Amazon SageMaker, AWS Lambda, Amazon Bedrock (optional) |
-| Auth | Amazon Cognito, JWT, RBAC |
-| Real-time | AWS IoT Core → Kinesis → WebSocket API |
-| IaC | AWS CDK (TypeScript) |
-| CI/CD | GitHub Actions → AWS CodeDeploy / Amplify Hosting + ECS Fargate or Lambda |
-
-## Features
-
-- **Authentication & Access Control** — Cognito login, optional phone OTP (SNS/Pinpoint), roles (`super_admin`, `org_admin`, `caregiver`, `responder`), optional MFA, role-based UI rendering.
-- **Real-Time Dashboard** — live map, vitals strip (heart rate, stress index, battery), color-coded alert feed, historical heatmap with playback.
-- **Geofencing** — draw-on-map CRUD for safe zones, real-time breach evaluation against incoming GPS pings.
-- **AI Stress & Distress Detection** — `/ml/stress-score` and `/ml/distress-classify` endpoints proxying SageMaker; fall detection via lightweight rule+ML hybrid in Lambda.
-- **Dynamic Encrypted QR Identity** — rotating KMS-signed JWT QR tokens; tiered public resolution endpoint; every scan logged and pushed to caregivers in real time.
-- **Panic Alert** — wearable-triggered SNS fan-out (SMS + push + in-app) with configurable escalation to secondary contacts.
-- **Non-Verbal Assist Log** — event-coded need categories rendered as a communication timeline for pattern recognition.
-- **Reporting & Analytics** — weekly/monthly PDF/in-app reports, CSV export with consent enforcement.
-
-## Data Model
-
-DynamoDB single-table design — table name: `AutiGuardCore`
-
-| PK | SK | Entity | Notes |
-|---|---|---|---|
-| `ORG#<orgId>` | `PROFILE` | Organization | name, plan tier |
-| `ORG#<orgId>` | `USER#<userId>` | Caregiver/Admin | role, contact info |
-| `WEARER#<wearerId>` | `PROFILE` | Wearer profile | name, DOB, medical notes, QR tiering rules |
-| `WEARER#<wearerId>` | `TELEMETRY#<ISO8601>` | Time-series ping | HR, GPS, accel summary, stress_index |
-| `WEARER#<wearerId>` | `ALERT#<ISO8601>` | Alert event | type, severity, ack status |
-| `WEARER#<wearerId>` | `GEOFENCE#<fenceId>` | Safe zone | polygon/radius coords |
-| `WEARER#<wearerId>` | `QRSCAN#<ISO8601>` | Scan log | tier resolved, location |
-| `WEARER#<wearerId>` | `COMMLOG#<ISO8601>` | Non-verbal event | category code |
-
-- **GSI1** (`GSI1PK = WEARER#<id>`, `GSI1SK = ALERT type`) — efficient cross-time-range alert queries.
-- **TTL** enabled on raw telemetry (archived to S3 via Firehose before expiry).
-- **DynamoDB Streams** trigger a Lambda for real-time WebSocket push to connected dashboards.
-
-## Repository Structure
-/infra          CDK (TypeScript) stacks: networking, DynamoDB, Cognito, IoT Core,
-Lambda, SageMaker endpoint config, API Gateway, CloudFront/Amplify
-/backend         FastAPI service (typed, pytest-covered)
-/app
-/api/v1      auth, wearers, telemetry, alerts, geofence, qr, ml, comms, reports
-/core        config, security (Cognito JWKS verification), dynamodb helpers
-/services    stress_service, geofence_service, qr_service, notification_service
-/schemas     Pydantic models
-main.py
-/frontend        React + TypeScript app
-/docs
-architecture.mmd   Mermaid diagram of the AWS service map
-api-spec.yaml      OpenAPI 3.1 spec (exported from FastAPI)
-README.md
-## API Overview
-
-Illustrative endpoint contracts (see `/docs/api-spec.yaml` for the full OpenAPI spec):
-
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/v1/telemetry` | Ingest a batch of sensor readings (also reachable via IoT Rule → Lambda) |
-| `GET` | `/api/v1/wearers/{id}/telemetry?range=24h` | Query recent telemetry for a wearer |
-| `POST` | `/api/v1/alerts/{id}/acknowledge` | Acknowledge an alert |
-| `POST` | `/api/v1/qr/{wearerId}/rotate` | Rotate a wearer's QR identity token |
-| `GET` | `/qr/resolve/{token}` | Public, rate-limited, tiered QR resolution |
-| `POST` | `/api/v1/ml/stress-score` | Feature vector → SageMaker invoke → stress score |
-| `GET` | `/api/v1/reports/{wearerId}?period=monthly&format=pdf\|csv` | Generate/export reports |
-
-All endpoints use Pydantic request/response models, async handlers, structured JSON logging to CloudWatch, input validation, and API Gateway usage-plan rate limiting.
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18+ and npm/pnpm
-- Python 3.11+
-- Docker (for local DynamoDB via `docker-compose`)
-- AWS CLI configured with appropriate credentials
-- AWS CDK CLI (`npm install -g aws-cdk`)
-
-### Local Development
-
-```bash
-# Clone the repo
-git clone https://github.com/<org>/autiguard.git
-cd autiguard
-
-# Start local DynamoDB + backend dependencies
-docker-compose up -d
-
-# Backend
-cd backend
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-
-# Frontend
-cd ../frontend
-npm install
-npm run dev
-
-# Infrastructure (deploy to AWS)
-cd ../infra
-npm install
-cdk bootstrap
-cdk deploy --all
-```
-
-## Environment Variables
-
-Backend (`.env` / `pydantic-settings`):
-
-| Variable | Description |
-|---|---|
-| `COGNITO_USER_POOL_ID` | Cognito User Pool used for JWT verification |
-| `DYNAMODB_TABLE` | Single-table DynamoDB table name (`AutiGuardCore`) |
-| `KMS_KEY_ID` | KMS key used for QR token signing and field-level encryption |
-| `SAGEMAKER_STRESS_ENDPOINT` | SageMaker endpoint name for the stress model |
-| `SAGEMAKER_DISTRESS_ENDPOINT` | SageMaker endpoint name for the distress audio model |
-| `SNS_TOPIC_ARN` | SNS topic for panic alert fan-out |
-
-> Never commit real values for these — use AWS Secrets Manager / Parameter Store in deployed environments and `.env.local` (gitignored) for local dev.
-
-## Security & Compliance
-
-- TLS 1.2+ in transit; KMS-encrypted at rest (DynamoDB + S3 default encryption).
-- Least-privilege IAM roles per Lambda/service — no wildcard policies.
-- Field-level KMS envelope encryption for medical notes before persistence.
-- AWS WAF on API Gateway/CloudFront, with rate limiting on the public QR-resolve endpoint.
-- Immutable audit trail (CloudTrail + `AUDIT#` DynamoDB item pattern) for QR scans, alert acknowledgments, and profile edits.
-- Configurable, org-level data retention policy (GDPR/HIPAA-aligned data minimization).
-
-## Non-Functional Targets
-
-- P99 API latency < 300ms for dashboard reads (DAX caching if load testing indicates need).
-- WebSocket push latency < 2s from device ping to dashboard update.
-- 99.9% uptime target — multi-AZ DynamoDB, Fargate across 2+ AZs.
-- Stateless, horizontally scalable FastAPI containers behind ALB/API Gateway, autoscaling on CPU + request count.
-
-## Deployment
-
-- **Infrastructure**: AWS CDK (TypeScript), deployed via `cdk deploy`.
-- **Backend**: containerized FastAPI on ECS Fargate (or Lambda via Mangum adapter), fronted by API Gateway.
-- **Frontend**: AWS Amplify Hosting or S3 + CloudFront.
-- **CI/CD**: GitHub Actions pipeline runs tests, builds artifacts, and triggers CDK/CodeDeploy deployment to staging then production.
-
-## Roadmap / Build Order
-
-1. Scaffold CDK stack: Cognito + DynamoDB table + base API Gateway/Lambda skeleton.
-2. Backend: auth guard + wearer CRUD + DynamoDB service layer.
-3. Backend: telemetry ingestion + alerts + geofence evaluation Lambda.
-4. Backend: QR generation/resolution with KMS signing.
-5. Backend: ML proxy endpoints (stubbed behind an interface for local dev).
-6. Frontend: auth flow → dashboard shell → live map/vitals → alerts → geofence editor → reports → responder QR view.
-7. Wire WebSocket real-time push end-to-end.
-8. Security pass: KMS field encryption, WAF rules, IAM least-privilege audit.
-9. CI/CD pipeline + staging environment deploy.
-
-## Contributing
-
-1. Fork the repo and create a feature branch.
-2. Confirm any DynamoDB schema or API contract changes against `/docs/api-spec.yaml` before implementing frontend components against them.
-3. Add/update `pytest` coverage for backend changes.
-4. Open a PR describing the change and its impact on the architecture diagram, if any.
+AutiGuard is a cloud-native, real-time safety and emotional monitoring platform designed to protect wearers and assist caregivers. Integrating live wearable telemetry, secure cloud infrastructure, and a premium glassmorphic control dashboard, the platform provides real-time distress detection, geofencing safety zones, and secure health profile management.
 
 ---
 
-**Note:** This is a safety-critical application. Any change touching alerting, geofencing, panic escalation, or QR identity resolution should be reviewed with extra care and tested end-to-end before merging.
+## 🏗️ Architecture & Data Flow
+
+```mermaid
+flowchart TD
+    subgraph Client Application
+        FE[React + Vite Frontend :5173]
+    end
+
+    subgraph API & Compute Layer
+        BE[FastAPI Backend :8000]
+        WS[WebSocket Manager]
+    end
+
+    subgraph AWS Security & Database Stack
+        Cognito[Cognito User Pool]
+        DynamoDB[(DynamoDB Single-Table)]
+        KMS[KMS Envelope Key]
+    end
+
+    subgraph Telemetry Source
+        Sim[Hardware Telemetry Simulator]
+    end
+
+    Sim -->|Vitals / GPS Stream| BE
+    BE <-->|Bidirectional Real-Time Data| WS
+    WS <-->|Vitals & Warning Feeds| FE
+    FE -->|SSO / Login Auth| Cognito
+    BE -->|Token Validation & Groups| Cognito
+    BE -->|Query & Insert Logs| DynamoDB
+    BE -->|Encrypt / Decrypt PII Fields| KMS
+```
+
+### Deployed AWS Services
+| Concern | AWS Service |
+| :--- | :--- |
+| **Device Ingestion** | AWS IoT Core (MQTT topics per device) |
+| **Stream Processing** | Amazon Kinesis Data Streams + Firehose (raw archive to S3) |
+| **Event-Driven Compute** | AWS Lambda (geofence checks, fall detection, alert dispatch) |
+| **ML Model Hosting** | Amazon SageMaker (real-time endpoints) |
+| **Primary Data Store** | Amazon DynamoDB (single-table design) |
+| **Object Storage** | Amazon S3 (audio embeddings, reports, QR images) |
+| **Auth** | Amazon Cognito (User Pools + Identity Pools, RBAC) |
+| **API Layer** | Amazon API Gateway (REST + WebSocket) fronting FastAPI on ECS Fargate |
+| **Secrets & Encryption** | AWS KMS + AWS Secrets Manager |
+| **CDN / Hosting** | Amazon CloudFront + AWS Amplify Hosting |
+| **IaC** | AWS CDK (TypeScript) |
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+| :--- | :--- |
+| **Frontend** | React 18 (Vite), TypeScript, TailwindCSS, React Query, Zustand, Leaflet Maps, Recharts |
+| **Backend** | FastAPI (Python 3.11), Pydantic v2, PyJWT, Boto3, Uvicorn |
+| **Database** | Amazon DynamoDB (primary single-table design) |
+| **Containerization** | Docker, Docker Compose, Rancher Desktop (`nerdctl`) |
+| **Infrastructure** | AWS CDK (TypeScript) |
+
+---
+
+## ⚡ Core Features & Security Implementations
+
+* **Cognito-Powered RBAC**: Secure single sign-on (SSO) utilizing Cognito credentials flow. Roles (`org_admin`, `caregiver`) are checked against Cognito User Groups and decoded securely on the backend to enforce permission guards.
+* **PII Envelope Encryption (AWS KMS)**: Sensitive wearer fields like `medical_notes`, `allergies`, and `medications` are encrypted on the backend using AWS KMS prior to DynamoDB persistence and decrypted on-the-fly only when requested by verified caregivers.
+* **DynamoDB Single-Table Design**: High-efficiency schema optimization utilizing partition keys (`PK`), sort keys (`SK`), and a Global Secondary Index (`GSI1`) for O(1) retrieval of wearer profiles, telemetry, geofences, and alarms.
+* **Real-Time WebSockets**: Live vitals (Heart Rate, Stress Index) and warnings are pushed dynamically to connected clients.
+* **Liquid Glass Emergency Overlays**: Visually stunning dashboard alerting caregivers of critical incidents (falls, loud environments, geofence breaches) within a 30% screen sheet containing Text-to-Speech (TTS) emergency warnings.
+
+---
+
+## 📊 Single-Table Data Model
+
+Table Name: `AutiGuardCore`
+
+| PK | SK | Entity | Attributes / Notes |
+| :--- | :--- | :--- | :--- |
+| `ORG#<orgId>` | `PROFILE` | Organization | Name, plan tier |
+| `ORG#<orgId>` | `USER#<userId>` | Caregiver/Admin | Role, email, name |
+| `WEARER#<wearerId>` | `PROFILE` | Wearer Profile | Name, DOB, encrypted medical notes, contacts |
+| `WEARER#<wearerId>` | `TELEMETRY#<ISO8601>` | Telemetry logs | Heart rate, GPS coordinates, stress index, battery |
+| `WEARER#<wearerId>` | `ALERT#<ISO8601>` | Alert event | Incident type, severity, acknowledgment status |
+| `WEARER#<wearerId>` | `GEOFENCE#<fenceId>` | Geofence safe area| Coordinates, radius, state |
+
+* **GSI1** Partition Key: `GSI1PK = WEARER#<wearerId>`, Sort Key: `GSI1SK = ALERT#<timestamp>` for querying historical wearer incidents efficiently.
+
+---
+
+## 📁 Repository Structure
+
+```
+├── backend/
+│   ├── app/
+│   │   ├── api/v1/       # Auth, wearers, telemetry, alerts, geofence, comms router
+│   │   ├── core/         # Config settings, KMS security, DynamoDB wrapper
+│   │   └── main.py       # FastAPI startup and WebSocket manager
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/
+│   ├── src/              # React components, stores, maps, pages
+│   ├── Dockerfile
+│   └── package.json
+├── infra/
+│   ├── lib/              # AWS CDK Stacks (Compute, Database, Auth, Security)
+│   └── tsconfig.json
+├── assets/               # Production screenshots and graphics
+└── docker-compose.yml    # Main orchestration docker compose config
+```
+
+---
+
+## 🚀 Deployment & Local Setup
+
+### 1. Local Configuration
+Configure the environment variables in `backend/.env`:
+```env
+AWS_DEFAULT_REGION=ap-south-1
+AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY=YOUR_AWS_SECRET_ACCESS_KEY
+DYNAMODB_TABLE=AutiGuardCore
+COGNITO_USER_POOL_ID=ap-south-1_n9TxDAu3z
+COGNITO_CLIENT_ID=3qu3kqqt4beqo1p6r02f8l1c09
+KMS_KEY_ID=9d4d41d7-bf21-45b4-aae2-8f57d55c522e
+MOCK_AWS=False
+```
+
+### 2. Run Locally (Without Containers)
+```bash
+# Start backend
+cd backend
+python -m venv venv
+venv\Scripts\activate # source venv/bin/activate on Unix
+pip install -r requirements.txt
+python -m uvicorn app.main:app --reload
+
+# Start frontend
+cd ../frontend
+npm install
+npm run dev
+```
+
+### 3. Run Containerized (Docker & Rancher Desktop)
+Spin up both the React client and FastAPI server inside connected containers:
+```bash
+# Using Docker
+docker compose up --build -d
+
+# Using Rancher Desktop (containerd runtime)
+nerdctl compose up --build -d
+```
+Access the client dashboard at **`http://localhost:5173/`**.
+
+### 4. Deploy to Rancher Kubernetes
+Apply configurations to your local Rancher Kubernetes cluster:
+```bash
+# Build images in the local Kubernetes namespace
+nerdctl --namespace k8s.io build -t autiguard-backend:latest ./backend
+nerdctl --namespace k8s.io build -t autiguard-frontend:latest ./frontend
+
+# Deploy manifests
+kubectl apply -f kubernetes-deployment.yaml
+```
+
+---
+
+## 🏆 Verified Console Dashboard UI
+
+The caregiver console has been verified against the live AWS environment. Below is the active view showing the Leaflet mapping tracker, real-time stress index monitoring, and an active sound level distress incident:
+
+![AutiGuard Control Console](assets/dashboard_screenshot.png)
