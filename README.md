@@ -1,126 +1,104 @@
-# 🛡️ AutiGuard & AEGIS.SYS: Cloud-Native Safety & Mission Critical Caregiver System
+# 🛡️ AutiGuard & AEGIS.SYS: Cloud-Native Safety & Caregiver Command Console
 
-[![AWS Cloud](https://img.shields.io/badge/AWS-ap--south--1-FF9900?style=flat-square&logo=amazon-aws)](https://aws.amazon.com/)
-[![React](https://img.shields.io/badge/Frontend-React%20%7C%20TypeScript-blue?style=flat-square&logo=react)](https://react.dev/)
-[![FastAPI](https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![Containerized](https://img.shields.io/badge/Runtime-Docker%20%7C%20Rancher-2496ED?style=flat-square&logo=docker)](https://rancherdesktop.io/)
-[![Security Grade](https://img.shields.io/badge/Security-AWS%20KMS%20PII%20Encryption-green?style=flat-square)](https://aws.amazon.com/kms/)
+[![AWS Cloud](https://img.shields.io/badge/AWS-Deployments-FF9900?style=for-the-badge&logo=amazon-aws)](https://aws.amazon.com/)
+[![React](https://img.shields.io/badge/Frontend-React%20%7C%20TypeScript-blue?style=for-the-badge&logo=react)](https://react.dev/)
+[![FastAPI](https://img.shields.io/badge/Backend-FastAPI%20%7C%20Python-009688?style=for-the-badge&logo=fastapi)](https://fastapi.tiangolo.com/)
+[![Containerized](https://img.shields.io/badge/Runtime-Docker%20%7C%20Rancher-2496ED?style=for-the-badge&logo=docker)](https://rancherdesktop.io/)
 
-AutiGuard is a cloud-native, real-time safety and emotional monitoring platform designed to protect wearers and assist caregivers. Integrating live wearable telemetry, secure cloud infrastructure, and a premium glassmorphic control dashboard, the platform provides real-time distress detection, geofencing safety zones, and secure health profile management.
+AutiGuard is a premium, cloud-native safety and emotional monitoring platform designed to protect wearers and assist caregivers. Integrating live wearable telemetry, secure cloud infrastructure, and a premium glassmorphic control dashboard, the platform provides real-time distress detection, geofencing safety zones, and secure health profile management.
 
-**AEGIS.SYS** (within this system) represents the mission-critical hardware, mobile simulator, and local validation subsystem featuring precision sensors, fall detection confirmation filters, and elegant 30% warning overlays.
-
-* **System Status**: ✅ **OPERATIONAL** - Precision Data & Safety Logic Active  
-* **System Version**: 3.3 - Enhanced Validation & 30% Warning System  
-* **Theme**: Precision Obsidian (Strict Data Validation + Elegant Overlays)
+**AEGIS.SYS** (the local hardware/simulation system) drives the critical telemetry simulation, physical sensor logic (like fall detection, audio distress thresholds), and local dev-servers.
 
 ---
 
-## 🏗️ System Architecture & Data Flow
+## 🏗️ Detailed Architecture & Data Flow
 
-### Cloud-Native AWS Infrastructure
+Below is the end-to-end architecture detailing telemetry ingestion, real-time communication via WebSockets, security encryption via AWS KMS, and user access control via AWS Cognito.
+
 ```mermaid
-flowchart TD
-    subgraph Client Application
-        FE[React + Vite Frontend :5173]
+flowchart TB
+    subgraph Clients ["User Interfaces & Clients"]
+        FE["React Web Console (Port: 5173)"]
+        FA["Flutter App (AEGIS.SYS Mobile)"]
     end
 
-    subgraph API & Compute Layer
-        BE[FastAPI Backend :8000]
-        WS[WebSocket Manager]
+    subgraph SecurityAuth ["Identity & Access Control"]
+        Cognito["Amazon Cognito User Pool<br/>(SSO & Role-Based Access)"]
     end
 
-    subgraph AWS Security & Database Stack
-        Cognito[Cognito User Pool]
-        DynamoDB[(DynamoDB Single-Table)]
-        KMS[KMS Envelope Key]
+    subgraph ApiCompute ["API & Computation Layer (AWS ECS Fargate)"]
+        API["FastAPI Backend (Port: 8000)"]
+        WS["WebSocket Connection Manager"]
+        Router["V1 Routes (Auth, Telemetry, Alerts, Geofences)"]
     end
 
-    subgraph Telemetry Source
-        Sim[Hardware Telemetry Simulator / AEGIS.SYS wearable]
+    subgraph Ingestion ["Ingestion & Streaming"]
+        IoT["AWS IoT Core (MQTT Ingestion)"]
+        Kinesis["Amazon Kinesis Data Streams"]
+        Firehose["Amazon Kinesis Firehose"]
+        S3Raw["Amazon S3 (Raw Telemetry Archive)"]
     end
 
-    Sim -->|Vitals / GPS Stream| BE
-    BE <-->|Bidirectional Real-Time Data| WS
-    WS <-->|Vitals & Warning Feeds| FE
-    FE -->|SSO / Login Auth| Cognito
-    BE -->|Token Validation & Groups| Cognito
-    BE -->|Query & Insert Logs| DynamoDB
-    BE -->|Encrypt / Decrypt PII Fields| KMS
+    subgraph DataStore ["Database & Encryption"]
+        DynamoDB[("DynamoDB (Single-Table design: AutiGuardCore)")]
+        KMS["AWS KMS (PII Envelope Key Encryption)"]
+    end
+
+    subgraph PhysicalDevices ["Telemetry Sources"]
+        ESP32["Physical ESP32 Wearable"]
+        Sim["Python Mobile Sensor Simulator"]
+    end
+
+    %% Auth Flows
+    FE -->|"Cognito Authenticate (OAuth/SSO)"| Cognito
+    API -->|"Token Verification / Group Auth"| Cognito
+
+    %% Ingestion Flows
+    ESP32 -->|"MQTT Telemetry Stream"| IoT
+    Sim -->|"HTTP POST /data"| API
+    IoT --> Kinesis --> Firehose --> S3Raw
+
+    %% Core Data & Real-time Flow
+    API <-->|"Bidirectional WebSockets"| WS
+    WS <-->|"Live Vitals & Emergency Alerts"| FE
+    API -->|"CRUD Operations"| DynamoDB
+    API -->|"Encrypt/Decrypt sensitive fields (Medical Notes)"| KMS
+    
+    %% Router detail
+    API --- Router
 ```
 
-### Local / Simulator Data Flow
-```
-Mobile Sensors → Simulator → FastAPI Backend → Global State → Flutter App/Web Frontend
-Hardware DB   → SQLite    → FastAPI Backend → Global State → Flutter App/Web Frontend
-```
+---
 
-### Deployed AWS Services
-| Concern | AWS Service |
-| :--- | :--- |
-| **Device Ingestion** | AWS IoT Core (MQTT topics per device) |
-| **Stream Processing** | Amazon Kinesis Data Streams + Firehose (raw archive to S3) |
-| **Event-Driven Compute** | AWS Lambda (geofence checks, fall detection, alert dispatch) |
-| **ML Model Hosting** | Amazon SageMaker (real-time endpoints) |
-| **Primary Data Store** | Amazon DynamoDB (single-table design) |
-| **Object Storage** | Amazon S3 (audio embeddings, reports, QR images) |
-| **Auth** | Amazon Cognito (User Pools + Identity Pools, RBAC) |
-| **API Layer** | Amazon API Gateway (REST + WebSocket) fronting FastAPI on ECS Fargate |
-| **Secrets & Encryption** | AWS KMS + AWS Secrets Manager |
-| **CDN / Hosting** | Amazon CloudFront + AWS Amplify Hosting |
-| **IaC** | AWS CDK (TypeScript) |
+## 🛠️ Unified Technology Stack
+
+| Layer | Component | Description |
+| :--- | :--- | :--- |
+| **Frontend** | React 18 (Vite) | Main Caregiver Console featuring TailwindCSS, Zustand state manager, Leaflet maps, and Recharts. |
+| **Mobile** | Flutter 3.0+ | Cross-platform caregiver app with integrated Google Maps and custom warning sheets. |
+| **Backend** | FastAPI (Python 3.11) | High-performance API using Pydantic v2, PyJWT, Boto3, and WebSockets. |
+| **Database** | Amazon DynamoDB | Primary single-table schema for O(1) performance. Local SQLite database (`wearable.db`) for offline testing. |
+| **Security** | AWS KMS & Cognito | Secure role-based access control (RBAC) and field-level envelope encryption for PII. |
+| **Infrastructure** | AWS CDK | TypeScript-based Infrastructure as Code (IaC) deployment definitions. |
 
 ---
 
-## 🛠️ Tech Stack
+## ⚡ Core Features & Security Guardrails
 
-| Layer | Technology |
-| :--- | :--- |
-| **Frontend (Web)** | React 18 (Vite), TypeScript, TailwindCSS, React Query, Zustand, Leaflet Maps, Recharts |
-| **Mobile (AEGIS)** | Flutter 3.0+, Android SDK, Google Maps API |
-| **Backend (Cloud)** | FastAPI (Python 3.11), Pydantic v2, PyJWT, Boto3, Uvicorn |
-| **Local/Sim Backend** | Python 3.8+, FastAPI, SQLite |
-| **Database** | Amazon DynamoDB (primary single-table design) & local SQLite (`wearable.db`) |
-| **Containerization** | Docker, Docker Compose, Rancher Desktop (`nerdctl`) |
-| **Infrastructure** | AWS CDK (TypeScript) |
+### 🔒 Enterprise Cloud Security
+* **Cognito-Powered RBAC**: Caregivers and administrators are authenticated via Cognito User Pools. Roles (`org_admin`, `caregiver`) are checked against decoded JWT groups to restrict system endpoints.
+* **PII Envelope Encryption (AWS KMS)**: HIPAA-compliant data security. Sensitive wearer files like `medical_notes`, `allergies`, and `medications` are encrypted in transit using AWS KMS envelope keys before being persisted in DynamoDB.
+* **Optimized DynamoDB Schema**: Utilizing a single-table design for quick index query lookups without database table joins.
 
----
-
-## ⚡ Core Features & Precision Enhancements
-
-### Cloud Security & Enterprise Core
-* **Cognito-Powered RBAC**: Secure single sign-on (SSO) utilizing Cognito credentials flow. Roles (`org_admin`, `caregiver`) are checked against Cognito User Groups and decoded securely on the backend to enforce permission guards.
-* **PII Envelope Encryption (AWS KMS)**: Sensitive wearer fields like `medical_notes`, `allergies`, and `medications` are encrypted on the backend using AWS KMS prior to DynamoDB persistence and decrypted on-the-fly only when requested by verified caregivers.
-* **DynamoDB Single-Table Design**: High-efficiency schema optimization utilizing partition keys (`PK`), sort keys (`SK`), and a Global Secondary Index (`GSI1`) for O(1) retrieval of wearer profiles, telemetry, geofences, and alarms.
-* **Real-Time WebSockets**: Live vitals (Heart Rate, Stress Index) and warnings are pushed dynamically to connected clients.
-* **Liquid Glass Emergency Overlays**: Visually stunning dashboard alerting caregivers of critical incidents (falls, loud environments, geofence breaches) within a 30% screen sheet containing Text-to-Speech (TTS) emergency warnings.
-
-### AEGIS.SYS Mission Critical Logic
-* **PRECISION DATA VALIDATION**: 5-second freshness check on data streams, returning a "NOT CONNECTED" status for stale data.
-* **CONFIRMATION FILTER**: Fall alerts only trigger after 2 consecutive packets exceed 25.0 m/s² acceleration.
-* **30% WARNING OVERLAYS**: Elegant top-sheet notifications covering only 30% of the screen.
-* **INTERACTIVE TACTICAL MAP**: Draggable, zoomable map with long-press safe zone setting (100m radius).
-* **AUDIO ALERT TESTING**: Debug button to verify Text-to-Speech (TTS) functionality.
-* **STRICT ACCEL LOGIC**: Only uses POSTed JSON payload data, ignoring internal sensors.
+### 🚨 AEGIS.SYS Precision Logic
+* **Data Freshness validation**: Triggers a `"NOT CONNECTED"` warning state on the frontend dashboard if client heartbeat signals or telemetry data packages pause for more than 5 seconds.
+* **Intelligent Fall Filtering**: Avoids false alarms by checking acceleration data for sustained impact. Alerts trigger only when 2 consecutive sensor packets exceed **25.0 m/s²**.
+* **30% Liquid Glass Sheets**: Non-intrusive overlays covering exactly 30% of the screen height, paired with Text-to-Speech (TTS) safety announcements.
+* **Smart Geofence Violation**: Immediate alert triggers when wearer device moves outside of the set 100m safe zone.
 
 ---
 
-## 📊 Single-Table Data Model (AutiGuardCore)
-
-| PK | SK | Entity | Attributes / Notes |
-| :--- | :--- | :--- | :--- |
-| `ORG#<orgId>` | `PROFILE` | Organization | Name, plan tier |
-| `ORG#<orgId>` | `USER#<userId>` | Caregiver/Admin | Role, email, name |
-| `WEARER#<wearerId>` | `PROFILE` | Wearer Profile | Name, DOB, encrypted medical notes, contacts |
-| `WEARER#<wearerId>` | `TELEMETRY#<ISO8601>` | Telemetry logs | Heart rate, GPS coordinates, stress index, battery |
-| `WEARER#<wearerId>` | `ALERT#<ISO8601>` | Alert event | Incident type, severity, acknowledgment status |
-| `WEARER#<wearerId>` | `GEOFENCE#<fenceId>` | Geofence safe area| Coordinates, radius, state |
-
-* **GSI1** Partition Key: `GSI1PK = WEARER#<wearerId>`, Sort Key: `GSI1SK = ALERT#<timestamp>` for querying historical wearer incidents efficiently.
-
----
-
-## 📁 Repository Structure
+## 📁 Clean Repository Structure
 
 ```
 ├── backend/
@@ -132,24 +110,31 @@ Hardware DB   → SQLite    → FastAPI Backend → Global State → Flutter App
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/              # React components, stores, maps, pages
+│   │   ├── components/   # Reuseable visual components (Map, navbar, sidebar, alert feeds)
+│   │   ├── pages/        # Router pages (Dashboard, Settings, Profile, QR-view)
+│   │   ├── store/        # Zustand state stores
+│   │   └── aws-config.ts # AWS client configurations
 │   ├── Dockerfile
 │   └── package.json
 ├── infra/
 │   ├── lib/              # AWS CDK Stacks (Compute, Database, Auth, Security)
 │   └── tsconfig.json
-├── autiguard_app/        # Flutter Client Application (AEGIS.SYS UI)
+├── autiguard_app/        # Flutter Client Application (AEGIS.SYS Mobile)
 ├── sensor logger/        # Hardware telemetry loggers & local server setup
 │   └── ai-wearable/
 ├── assets/               # Production screenshots and graphics
+├── Hardware-main.zip     # Source code backup for the physical wearable hardware
 └── docker-compose.yml    # Main orchestration docker compose config
 ```
 
 ---
 
-## 🚀 Deployment & Local Setup
+## 🚀 Execution & Local Setup
 
-### 1. Cloud / Web Platform Local Setup
-Configure the environment variables in `backend/.env`:
+### 1. Web Console & FastAPI Server Setup
+
+#### Local Configuration (`backend/.env`)
+Create the environment variables in `backend/.env`:
 ```env
 AWS_DEFAULT_REGION=ap-south-1
 AWS_ACCESS_KEY_ID=YOUR_AWS_ACCESS_KEY_ID
@@ -161,7 +146,7 @@ KMS_KEY_ID=9d4d41d7-bf21-45b4-aae2-8f57d55c522e
 MOCK_AWS=False
 ```
 
-#### Run Locally (Without Containers)
+#### Run Without Containers
 ```bash
 # Start backend
 cd backend
@@ -176,164 +161,60 @@ npm install
 npm run dev
 ```
 
-#### Run Containerized (Docker & Rancher Desktop)
+#### Run Containerized (Docker / Rancher Desktop)
 ```bash
-# Using Docker
+# Build and run the app
 docker compose up --build -d
-
-# Using Rancher Desktop (containerd runtime)
-nerdctl compose up --build -d
 ```
 Access the client dashboard at **`http://localhost:5173/`**.
-
-#### Deploy to Rancher Kubernetes
-```bash
-# Build images in the local Kubernetes namespace
-nerdctl --namespace k8s.io build -t autiguard-backend:latest ./backend
-nerdctl --namespace k8s.io build -t autiguard-frontend:latest ./frontend
-
-# Deploy manifests
-kubectl apply -f kubernetes-deployment.yaml
-```
 
 ---
 
 ### 2. AEGIS.SYS Local Hardware/Sim Setup
-Configure the environment variables in the local root/hardware config:
+
+#### Local Environment Setup
+Configure your settings:
 ```bash
-# Configure your laptop IP in .env file
 LAPTOP_IP=10.123.50.141
 HARDWARE_DB_PATH=E:/Athidh/Autiguard/esp32-cloud-server-main/wearable.db
-GOOGLE_MAPS_API_KEY=AIzaSyCZb9hp1XXwVnFm_cWBpHpQzw4J-FQUcOE
+GOOGLE_MAPS_API_KEY=YOUR_GOOGLE_MAPS_API_KEY
 ```
 
-#### Run Backend Services (Enhanced Validation)
+#### Run Backend Server (With SQLite)
 ```bash
-# Start precision-validated FastAPI backend
 cd "sensor logger/ai-wearable/backend"
 python main.py
-# Server runs on: http://10.123.50.141:8000
-# Features: 5-second data freshness, confirmation filters, strict validation
 ```
 
-#### Run Mobile Data Simulation
+#### Run Mobile Data Simulator
 ```bash
-# Start mobile sensor simulator (for demo)
 python mobile_data_simulator.py
-# Sends realistic sensor data to backend every 2 seconds
 ```
 
-#### Run Flutter App (Enhanced UI)
+#### Run Flutter Client App
 ```bash
 cd autiguard_app
 flutter run
-# Features: 30% warning overlays, interactive maps, safe zone setting (long-press to set)
 ```
 
 ---
 
-## 🚨 Safety & Event Ingestion Logic
+## 🚨 Alert Ingestion Rules
 
-### Fall Detection
-* **Threshold**: 25.0 m/s² (AEGIS system standard)
-* **Calculation**: `magnitude = sqrt(x² + y² + z²)`
-* **Response**: "FALL DETECTED" overlay with emergency red pulsing. Triggered after 2 consecutive packets.
-
-### Audio Distress
-* **Threshold**: 85.0 dB (AEGIS system standard)
-* **Response**: TTS alert: *"Safety Alert: High Noise Environment Detected"*
-
-### Action Buttons
-* **🍔 HUNGER**: Sends hunger request to backend.
-* **🚽 RESTROOM**: Sends restroom request to backend.  
-* **🚨 SOS**: Triggers emergency SOS with visual confirmation.
+| Alert Type | Trigger Threshold | Client UI Actions |
+| :--- | :--- | :--- |
+| **Fall Detection** | Acceleration > 25.0 m/s² (2 consecutive packets) | Flashes red emergency screen, overlays alert sheet |
+| **High Noise** | Decibels > 85.0 dB | Triggers Text-to-Speech alert warning caregiver |
+| **Geofence Breach** | Wearer distance > 100m from safe zone center | Sounds warning chime, shows wearer position on map |
+| **Panic / SOS** | Wearer device button press | Plays high priority alert, overlays active distress beacon |
 
 ---
 
-## 📊 API Endpoints (Local/AEGIS Backend)
-
-* **`GET /api/telemetry`**: Unified dual-source telemetry data.
-* **`POST /api/action`**: Action button requests (hunger, restroom, sos).
-* **`POST /data`**: Mobile sensor data ingestion.
-* **`GET /`**: System status and documentation.
-
----
-
-## 📱 Mobile Data Format
-
-The mobile simulator sends data in the following layout:
-```json
-{
-  "payload": [
-    {
-      "name": "accelerometer",
-      "values": {"x": -2.6, "y": 2.2, "z": 10.1}
-    },
-    {
-      "name": "audio", 
-      "values": {"db": 94.8}
-    },
-    {
-      "name": "pedometer",
-      "values": {"steps": 7696}
-    },
-    {
-      "name": "location",
-      "values": {"latitude": 13.0827, "longitude": 80.2707}
-    }
-  ]
-}
-```
-
----
-
-## 🔍 Debug & Monitoring
-
-### Backend Debug Output
-```
-DEBUG: Accel: 11.19 | X:-0.8 Y:-0.1 Z:11.2 | Steps: 2443 | Sound: 53 dB
-🔊 AEGIS AUDIO DISTRESS: Sound level 94 dB > 85.0
-🚨 AEGIS FALL DETECTED: Accel magnitude 27.3 > 25.0
-```
-
-### Mobile Simulator Output
-```
-✅ Data sent: Accel=11.19 | Steps=2443 | Sound=53.1dB
-🔊 SIMULATING LOUD NOISE: 94.8 dB
-🚨 SIMULATING FALL: 27.3 m/s²
-```
-
----
-
-## 🏆 Verified Console Dashboard UI & Achievements
+## 🏆 Console Verification
 
 The caregiver console has been verified against the live AWS environment. Below is the active view showing the Leaflet mapping tracker, real-time stress index monitoring, and an active sound level distress incident:
 
 ![AutiGuard Control Console](assets/dashboard_screenshot.png)
-
-### Hackathon Achievements
-* **Real-time Data Flow**: Fixed accelerometer latency issues.
-* **Live Safety Logic**: Fall detection and audio distress alerts fully operational.
-* **Professional UI**: AEGIS.SYS branding with glassmorphic design.
-* **Dual-Source Integration**: Hardware + Mobile unified telemetry.
-* **Emergency Systems**: Visual overlays, TTS alerts, action buttons.
-* **Google Maps Integration**: Live GPS tracking with tactical display.
-* **Flutter Performance**: 500ms polling with smooth animations.
-
----
-
-## 🔧 Troubleshooting & System Requirements
-
-### Common Issues
-1. **No accelerometer data**: Ensure mobile simulator is running and sending to correct IP.
-2. **API connection failed**: Check backend is running on port 8000.
-3. **Flutter build errors**: Run `flutter clean && flutter pub get`.
-4. **Map not loading**: Verify Google Maps API key in Android manifest.
-
-### System Requirements
-* **Backend**: Python 3.8+, FastAPI, SQLite.
-* **Frontend**: Flutter 3.0+, Android SDK.
-* **Network**: All devices on the same network with correctly configured IPs.
 
 ---
 
