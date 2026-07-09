@@ -1,0 +1,86 @@
+graph TD
+    %% Define Styles
+    classDef device fill:#FF9900,stroke:#333,stroke-width:2px,color:#fff;
+    classDef ingest fill:#15A2B8,stroke:#333,stroke-width:1px,color:#fff;
+    classDef stream fill:#5B5B5B,stroke:#333,stroke-width:1px,color:#fff;
+    classDef compute fill:#E05243,stroke:#333,stroke-width:1px,color:#fff;
+    classDef datastore fill:#3F8624,stroke:#333,stroke-width:2px,color:#fff;
+    classDef api fill:#11698E,stroke:#333,stroke-width:1px,color:#fff;
+    classDef frontend fill:#333,stroke:#FF9900,stroke-width:2px,color:#fff;
+
+    %% Elements
+    subgraph Wearable ["1. Wearer Layer (Hardware Integration)"]
+        dev[Wearable Device Sensor Board]
+        payload[JSON Payload: GPS, Heart Rate, Accel, Audio Embeds]
+        dev -->|MQTT / HTTPS| payload
+    end
+    class dev,payload device;
+
+    subgraph Ingestion ["2. Ingestion Layer"]
+        iot[AWS IoT Core]
+        rule[IoT Rule Engine]
+        payload -->|MQTT Topic: sdk/device/wearerId| iot
+        iot --> rule
+    end
+    class iot,rule ingest;
+
+    subgraph Streaming ["3. Stream & Archive Layer"]
+        kinesis[Amazon Kinesis Data Streams]
+        firehose[Amazon Kinesis Data Firehose]
+        s3_raw[Amazon S3 Raw Telemetry Bucket]
+        rule -->|Forward Payload| kinesis
+        rule -->|Forward Archive| firehose
+        firehose -->|Batch Archiving| s3_raw
+    end
+    class kinesis,firehose,s3_raw stream;
+
+    subgraph ComputeML ["4. Compute & AI/ML Layer"]
+        lambda[AWS Lambda Evaluator]
+        sagemaker[Amazon SageMaker Endpoints]
+        bedrock[Amazon Bedrock NLP]
+        kinesis -->|Trigger Triggering Event| lambda
+        lambda -->|Invoke /ml/stress-score| sagemaker
+        lambda -->|Invoke Optional NLP| bedrock
+    end
+    class lambda,sagemaker,bedrock compute;
+
+    subgraph Storage ["5. Persistent Data Layer"]
+        ddb[(Amazon DynamoDB Single-Table: AutiGuardCore)]
+        kms[AWS KMS CMK]
+        s3_assets[Amazon S3 Encrypted Export Storage]
+        lambda -->|Write Telemetry & Alerts| ddb
+        ddb -.->|KMS Envelope Encryption| kms
+    end
+    class ddb,kms,s3_assets datastore;
+
+    subgraph APILayer ["6. API Services Layer"]
+        apigw[Amazon API Gateway / WebSocket API]
+        alb[Application Load Balancer]
+        ecs[AWS ECS Fargate: FastAPI Application]
+        ddb_stream[DynamoDB Stream]
+        websocket_lambda[WebSocket Broadcast Lambda]
+
+        apigw --> alb
+        alb --> ecs
+        ecs -->|CRUD Profiles / Acknowledge Alerts| ddb
+        ddb_stream -->|Stream Updates| websocket_lambda
+        websocket_lambda -->|WebSocket Push| apigw
+    end
+    class apigw,alb,ecs,ddb_stream,websocket_lambda api;
+
+    subgraph ClientLayer ["7. Frontend & Access Layer"]
+        cloudfront[Amazon CloudFront CDN]
+        amplify[AWS Amplify / S3 Web Hosting]
+        fe_app[React TypeScript Caregiver Dashboard]
+        responder_app[Responder Mobile-First Profile Card]
+
+        cloudfront --> amplify
+        amplify --> fe_app
+        amplify --> responder_app
+        fe_app -->|WebSocket Connection & REST API| apigw
+        responder_app -->|Resolve Tiered QR Info /qr/resolve| apigw
+    end
+    class cloudfront,amplify,fe_app,responder_app frontend;
+
+    %% Custom connections
+    ecs -->|Generate Token / KMS Sign| kms

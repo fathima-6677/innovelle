@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:2.0.0
+    container_name: autiguard-dynamodb-local
+    ports:
+      - "8000:8000"
+    volumes:
+      - dynamodb-data:/home/dynamodblocal/data
+    command: "-jar DynamoDBLocal.jar -sharedDb -dbPath /home/dynamodblocal/data"
+
+  backend:
+    build: .
+    container_name: autiguard-backend
+    ports:
+      - "8001:8000"
+    environment:
+      - DYNAMODB_TABLE=AutiGuardCore
+      - DYNAMODB_ENDPOINT=http://dynamodb-local:8000
+      - AWS_ACCESS_KEY_ID=mockKeyId
+      - AWS_SECRET_ACCESS_KEY=mockSecretKey
+      - AWS_DEFAULT_REGION=ap-south-1
+      - COGNITO_USER_POOL_ID=ap-south-1_mockPoolId
+      - COGNITO_CLIENT_ID=mockClientId
+      - KMS_KEY_ID=mockKmsKeyId
+      - MOCK_AWS=True
+    depends_on:
+      - dynamodb-local
+
+volumes:
+  dynamodb-data:

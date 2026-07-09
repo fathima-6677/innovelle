@@ -93,3 +93,15 @@ test_*.py
 *_FIX.md
 *_GUIDE.md
 *_SETUP.md
+node_modules
+# Node.js
+node_modules/
+**/node_modules/
+
+# AWS CDK
+infra/cdk.out/
+cdk.out/
+**/cdk.out/
+
+# CDK context cache (optional)
+cdk.context.json

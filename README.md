@@ -1,200 +1,202 @@
-# AUTIGUARD Emergency Monitoring System
+# AEGIS.SYS - Mission Critical Guardian System
 
-A comprehensive emergency monitoring system with dual-source telemetry (hardware + mobile sensors), real-time communication, and WhatsApp emergency alerts.
+**Status**: ✅ **OPERATIONAL** - Precision Data & Safety Logic Active  
+**Version**: 3.3 - Enhanced Validation & 30% Warning System  
+**Theme**: Precision Obsidian (Strict Data Validation + Elegant Overlays)
 
 ## 🛡️ System Overview
 
-AUTIGUARD is an emergency monitoring system designed for real-time safety monitoring with multiple data sources, fall detection, panic button integration, and automated emergency notifications via WhatsApp.
+AEGIS.SYS is a real-time safety monitoring system with precision data validation, confirmation filters, and elegant 30% warning overlays. The system provides strict data validation, interactive tactical mapping, and professional emergency notifications.
 
 ### ⚡ Key Features
 
-- **Dual-Source Telemetry**: ESP32 hardware + mobile sensor integration
-- **Real-time Communication**: Socket.IO WebSocket streaming (100ms intervals)
-- **Emergency Detection**: Fall detection, panic button, audio distress alerts
-- **WhatsApp Integration**: Automated emergency notifications via Twilio
-- **Live Dashboard**: Flutter mobile app with tactical UI
-- **Hardware Simulation**: Complete ESP32 simulator for testing
+- **PRECISION DATA VALIDATION**: 5-second freshness check, "NOT CONNECTED" status for stale data
+- **CONFIRMATION FILTER**: Fall alerts only trigger after 2 consecutive packets above 25.0 m/s²
+- **30% WARNING OVERLAYS**: Elegant top-sheet alerts covering only 30% of screen
+- **INTERACTIVE TACTICAL MAP**: Draggable, zoomable with long-press safe zone setting
+- **SAFE ZONE MONITORING**: 100m radius geofence with violation alerts
+- **AUDIO ALERT TESTING**: Debug button to verify TTS functionality
+- **STRICT ACCEL LOGIC**: Only uses POSTed JSON payload data, no internal sensors
+- **MCP STITCH INTEGRATION**: AI-powered UI design with professional overlays
 
 ## 🚀 Quick Start
 
 ### 1. Environment Setup
-
-Configure your environment variables in `.env`:
-
 ```bash
-# Backend Configuration
-SERVER_HOST=0.0.0.0
-SERVER_PORT=8001
+# Configure your laptop IP in .env file
 LAPTOP_IP=10.123.50.141
-
-# Twilio WhatsApp Integration
-TWILIO_ACCOUNT_SID=your_account_sid
-TWILIO_AUTH_TOKEN=your_auth_token
-TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
-TWILIO_WHATSAPP_TO=whatsapp:+918754617636
-TWILIO_TEMPLATE_SID=HX350d429d32e64a552466cafecbe95f3c
-
-# Hardware Database
-HARDWARE_DB_PATH=E:\Athidh\Autiguard\database.db
+HARDWARE_DB_PATH=E:/Athidh/Autiguard/esp32-cloud-server-main/wearable.db
+GOOGLE_MAPS_API_KEY=AIzaSyCZb9hp1XXwVnFm_cWBpHpQzw4J-FQUcOE
 ```
 
-### 2. Backend Server
-
+### 2. Backend Services (Enhanced Validation)
 ```bash
+# Start precision-validated FastAPI backend
 cd "sensor logger/ai-wearable/backend"
-pip install -r requirements.txt
 python main.py
+# Server runs on: http://10.123.50.141:8000
+# Features: 5-second data freshness, confirmation filters, strict validation
 ```
 
-Server will start on `http://localhost:8001` with Socket.IO support.
-
-### 3. Hardware Simulator
-
+### 3. Mobile Data Simulation
 ```bash
-python simple_hardware_simulator.py
+# Start mobile sensor simulator (for demo)
+python mobile_data_simulator.py
+# Sends realistic sensor data to backend every 2 seconds
+# Backend validates data freshness and applies confirmation filters
 ```
 
-Simulates ESP32 wearable device sending BPM, panic button, and GPS data.
-
-### 4. Flutter Mobile App
-
+### 4. Flutter App (Enhanced UI)
 ```bash
 cd autiguard_app
-flutter pub get
 flutter run
+# Features: 30% warning overlays, interactive maps, safe zone setting
+# Long-press map to set safe zone, use TEST ALERTS button to verify audio
 ```
 
-## 📱 System Architecture
+## 🎯 PRECISION ENHANCEMENTS
 
-### Backend Components
-- **FastAPI Server**: Main API server with Socket.IO integration
-- **Serial Bridge**: COM3 serial communication for ESP32
-- **Twilio Integration**: WhatsApp emergency notifications
-- **SQLite Database**: Hardware telemetry storage
-- **Real-time Streaming**: 100ms telemetry broadcasting
+### Backend Validation
+- **Data Freshness**: Returns "NOT CONNECTED" if no data received within 5 seconds
+- **Confirmation Filter**: Fall detection requires 2 consecutive packets above 25.0 m/s²
+- **Strict Accel Logic**: Only uses POSTed JSON accelerometer data, no internal sensors
+- **Audio Trigger**: TTS alerts trigger exactly when noise_db > 85.0
 
-### Frontend Components
-- **Flutter App**: Mobile emergency dashboard
-- **Tactical UI**: High-contrast emergency interface
-- **Real-time Updates**: Socket.IO client integration
-- **Emergency Alerts**: Visual and audio notifications
+### UI Improvements
+- **30% Warning Overlays**: Elegant top-sheet notifications (Fall, Audio, Geofence)
+- **Interactive Map**: Fully draggable and zoomable Google Maps
+- **Safe Zone Setting**: Long-press map to set 100m radius safe zone
+- **Distance Widget Removed**: Cleaner interface as requested
+- **Test Alerts Button**: Debug functionality to verify audio system
 
-### Hardware Integration
-- **ESP32 Support**: Arduino Nano ESP32 compatibility
-- **Serial Protocol**: `BPM:75,PANIC:0,STEPS:1240` format
-- **WiFi Fallback**: Network-based data transmission
-- **Hardware Simulation**: Complete testing environment
+### Safety Logic
+- **Fall Detection**: Requires sustained acceleration > 25.0 m/s² for 2 packets
+- **Audio Distress**: Triggers at exactly 85.0 dB with TTS notification
+- **Geofence Violation**: Alerts when user moves outside 100m safe zone
+- **Emergency Overlays**: Professional liquid glass design covering only 30% of screen
+```
 
-## 🔧 Emergency Detection
+## 📊 API Endpoints
+
+- **`GET /api/telemetry`**: Unified dual-source telemetry data
+- **`POST /api/action`**: Action button requests (hunger, restroom, sos)
+- **`POST /data`**: Mobile sensor data ingestion
+- **`GET /`**: System status and documentation
+
+## 🔧 Data Flow Architecture
+
+```
+Mobile Sensors → Simulator → FastAPI Backend → Global State → Flutter App
+Hardware DB   → SQLite    → FastAPI Backend → Global State → Flutter App
+```
+
+### Live Data Processing
+1. **Mobile Simulator** sends payload array with accelerometer, audio, GPS, steps
+2. **SensorController** processes data and calculates safety thresholds
+3. **Global State** stores live sensor values (accel_x, accel_y, accel_z, sound_db)
+4. **Telemetry API** combines hardware + mobile data in unified JSON
+5. **Flutter App** polls every 500ms and updates UI with live animations
+
+## 🚨 Safety Logic
 
 ### Fall Detection
-- **Threshold**: 11.0 m/s² acceleration magnitude
-- **Latch Duration**: 10-second alert persistence
-- **Multi-trigger**: Instant impact + freefall detection
+- **Threshold**: 25.0 m/s² (AEGIS system standard)
+- **Calculation**: `magnitude = sqrt(x² + y² + z²)`
+- **Response**: Massive "FALL DETECTED" overlay with emergency red pulsing
 
 ### Audio Distress
-- **Threshold**: 85.0 dB sound level
-- **Alert Type**: "DISTRESS NOISE!" notification
-- **Priority**: Shows before SOS in notification queue
+- **Threshold**: 85.0 dB (AEGIS system standard)
+- **Response**: TTS alert "Safety Alert: High Noise Environment Detected"
+- **Visual**: Audio warning indicators in status grid
 
-### Panic Button
-- **Hardware**: ESP32 physical button
-- **Serial**: `PANIC:1` in data stream
-- **Alert Type**: "PANIC BUTTON PRESSED!" notification
+### Action Buttons
+- **🍔 HUNGER**: Sends hunger request to backend
+- **🚽 RESTROOM**: Sends restroom request to backend  
+- **🚨 SOS**: Triggers emergency SOS with visual confirmation
 
-## 📡 Communication Protocol
+## 🎨 UI Components
 
-### Socket.IO Events
-- `telemetry_stream`: Real-time sensor data (100ms)
-- `connection_status`: Client connection status
-- `connect`/`disconnect`: Connection lifecycle
+### AEGIS Command Center
+- **Header**: Professional AEGIS.SYS branding with neon cyan glow
+- **Guardian Toggle**: Hardware/Mobile source selection
+- **Vital Gauge**: Central animated gauge (BPM/Accelerometer)
+- **Status Grid**: Fall Alert, Audio Distress, Panic Alert, Distance
+- **Action Buttons**: Interactive buttons with animated checkmarks
+- **Tactical Map**: Google Maps with dual markers and connection lines
 
-### REST API Endpoints
-- `GET /api/telemetry`: Unified telemetry data
-- `POST /api/hardware-data`: Hardware simulator data
-- `POST /api/action`: Action button requests
-- `GET /health`: Server health check
+### Glassmorphic Design
+- **Theme**: Frosted Obsidian (high-contrast black & white)
+- **Effects**: 25px blur BackdropFilter for glass cards
+- **Animations**: Emergency red pulsing, heartbeat effects, smooth transitions
+- **Typography**: Professional AEGIS font with outer glow effects
 
-### WhatsApp Integration
-- **Template-based**: Dynamic alert routing
-- **Cooldown Protection**: 2-minute per alert type
-- **Three Alert Types**: Critical Fall, Audio Distress, SOS Button
+## 📱 Mobile Data Format
 
-## 🎯 File Structure
+The mobile simulator sends data in SensorController-compatible format:
 
+```json
+{
+  "payload": [
+    {
+      "name": "accelerometer",
+      "values": {"x": -2.6, "y": 2.2, "z": 10.1}
+    },
+    {
+      "name": "audio", 
+      "values": {"db": 94.8}
+    },
+    {
+      "name": "pedometer",
+      "values": {"steps": 7696}
+    },
+    {
+      "name": "location",
+      "values": {"latitude": 13.0827, "longitude": 80.2707}
+    }
+  ]
+}
 ```
-autiguard/
-├── autiguard_app/                 # Flutter mobile app
-│   ├── lib/
-│   │   ├── main.dart             # App entry point
-│   │   ├── providers/            # State management
-│   │   └── widgets/              # UI components
-│   └── pubspec.yaml              # Flutter dependencies
-├── sensor logger/ai-wearable/backend/  # Python backend
-│   ├── main.py                   # FastAPI server
-│   ├── requirements.txt          # Python dependencies
-│   ├── .env                      # Environment variables
-│   └── api/                      # API routes
-├── simple_hardware_simulator.py  # ESP32 simulator
-├── aegis_esp32_serial_streamer.ino  # Arduino code
-├── .env                          # Global environment
-├── .gitignore                    # Git ignore rules
-└── README.md                     # This file
+
+## 🔍 Debug & Monitoring
+
+### Backend Debug Output
+```
+DEBUG: Accel: 11.19 | X:-0.8 Y:-0.1 Z:11.2 | Steps: 2443 | Sound: 53 dB
+🔊 AEGIS AUDIO DISTRESS: Sound level 94 dB > 85.0
+🚨 AEGIS FALL DETECTED: Accel magnitude 27.3 > 25.0
 ```
 
-## 🔒 Security Features
+### Mobile Simulator Output
+```
+✅ Data sent: Accel=11.19 | Steps=2443 | Sound=53.1dB
+🔊 SIMULATING LOUD NOISE: 94.8 dB
+🚨 SIMULATING FALL: 27.3 m/s²
+```
 
-- **Environment-based Configuration**: All credentials in .env files
-- **CORS Protection**: Configured for Flutter app access
-- **Input Validation**: Sanitized API inputs
-- **Rate Limiting**: WhatsApp cooldown protection
-- **Error Handling**: Graceful degradation on failures
+## 🏆 Hackathon Achievements
 
-## 🚀 Deployment
+- ✅ **Real-time Data Flow**: Fixed accelerometer latency issues
+- ✅ **Live Safety Logic**: Fall detection and audio distress alerts operational
+- ✅ **Professional UI**: AEGIS.SYS branding with glassmorphic design
+- ✅ **Dual-Source Integration**: Hardware + Mobile unified telemetry
+- ✅ **Emergency Systems**: Visual overlays, TTS alerts, action buttons
+- ✅ **Google Maps Integration**: Live GPS tracking with tactical display
+- ✅ **Flutter Performance**: 500ms polling with smooth animations
 
-### Development
-1. Start backend server: `python main.py`
-2. Run hardware simulator: `python simple_hardware_simulator.py`
-3. Launch Flutter app: `flutter run`
+## 🔧 Troubleshooting
 
-### Production
-- Configure production environment variables
-- Set up proper SSL certificates
-- Configure Twilio production credentials
-- Deploy backend to cloud service
-- Build Flutter app for release
+### Common Issues
+1. **No accelerometer data**: Ensure mobile simulator is running and sending to correct IP
+2. **API connection failed**: Check backend is running on port 8000
+3. **Flutter build errors**: Run `flutter clean && flutter pub get`
+4. **Map not loading**: Verify Google Maps API key in Android manifest
 
-## 📞 Emergency Response
-
-When an emergency is detected:
-1. **Immediate UI Alert**: Visual notification in Flutter app
-2. **WhatsApp Message**: Automated message to guardian
-3. **Data Logging**: Emergency event stored in database
-4. **Real-time Streaming**: Live telemetry to all connected clients
-5. **Cooldown Protection**: Prevents spam notifications
-
-## 🛠️ Development
-
-### Backend Development
-- Python 3.8+ required
-- FastAPI framework
-- Socket.IO for real-time communication
-- SQLite for data persistence
-
-### Frontend Development
-- Flutter 3.0+ required
-- Provider state management
-- Socket.IO client integration
-- Material Design components
-
-### Hardware Development
-- Arduino IDE for ESP32 programming
-- Serial communication protocol
-- WiFi network integration
-- Sensor data formatting
+### System Requirements
+- **Backend**: Python 3.8+, FastAPI, SQLite
+- **Frontend**: Flutter 3.0+, Android SDK
+- **Network**: All devices on same network with configured IP
 
 ---
 
-**AUTIGUARD Mission Status**: ✅ **COMPLETE & OPERATIONAL**
-
-**Ready for**: GitHub repository, live safety monitoring, emergency response deployment
+**AEGIS.SYS Mission Status**: ✅ **COMPLETE & OPERATIONAL**  
+**Ready for**: Hackathon demonstration, live safety monitoring, real-world deployment

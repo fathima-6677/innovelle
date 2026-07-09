@@ -19,8 +19,8 @@ class SimpleHardwareSimulator:
         self.bpm = 75
         self.panic = False
         self.steps = 0
-        self.latitude = 13.0827  # Bangalore
-        self.longitude = 80.2707
+        self.latitude = 11.9416  # Pondicherry
+        self.longitude = 79.8083
         self.battery = 85
         
     def generate_realistic_data(self):
