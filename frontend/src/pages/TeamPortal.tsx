@@ -53,11 +53,11 @@ export const TeamPortal: React.FC = () => {
       <main className="flex-1 overflow-y-auto p-6 bg-aws-dark select-none">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-xl font-bold text-black flex items-center gap-2">
               <Users className="text-aws-orange" size={24} />
               ORGANIZATION TEAM MANAGEMENT
             </h1>
-            <p className="text-xs text-aws-gray/50 mt-1 uppercase font-mono">Cognito Identity Pool RBAC Control Panel</p>
+            <p className="text-xs text-black/70 mt-1 uppercase font-mono">Cognito Identity Pool RBAC Control Panel</p>
           </div>
         </div>
 
@@ -70,7 +70,7 @@ export const TeamPortal: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Members List */}
           <div className="lg:col-span-8 glass-panel p-6 rounded-lg border border-aws-slate">
-            <h2 className="text-xs font-bold text-white uppercase tracking-wider mb-6 border-b border-aws-slate pb-2">
+            <h2 className="text-xs font-bold text-black uppercase tracking-wider mb-6 border-b border-aws-slate pb-2">
               Active Authorized Accounts
             </h2>
 
@@ -82,8 +82,8 @@ export const TeamPortal: React.FC = () => {
                       {member.name[0]}
                     </div>
                     <div>
-                      <h3 className="text-sm font-bold text-white">{member.name}</h3>
-                      <p className="text-xs text-aws-gray/40 font-mono mt-0.5">{member.email}</p>
+                      <h3 className="text-sm font-bold text-black">{member.name}</h3>
+                      <p className="text-xs text-black/60 font-mono mt-0.5">{member.email}</p>
                     </div>
                   </div>
 
@@ -92,7 +92,7 @@ export const TeamPortal: React.FC = () => {
                       <span className="text-[10px] text-aws-orange/80 bg-aws-orange/5 px-2 py-0.5 rounded border border-aws-orange/20 uppercase font-mono font-semibold">
                         {member.role}
                       </span>
-                      <span className="text-[9px] text-aws-gray/30 font-mono mt-1">Joined: {member.joinedAt}</span>
+                      <span className="text-[9px] text-black/50 font-mono mt-1">Joined: {member.joinedAt}</span>
                     </div>
 
                     {user?.email !== member.email && (
@@ -111,31 +111,31 @@ export const TeamPortal: React.FC = () => {
 
           {/* Cognito User Pool Invite Form */}
           <form onSubmit={handleInvite} className="lg:col-span-4 glass-panel p-6 rounded-lg border border-aws-orange/15 space-y-4">
-            <h2 className="text-xs font-bold text-white uppercase tracking-wider mb-4 border-b border-aws-slate pb-2 flex items-center gap-1.5">
+            <h2 className="text-xs font-bold text-black uppercase tracking-wider mb-4 border-b border-aws-slate pb-2 flex items-center gap-1.5">
               <UserPlus size={16} className="text-aws-orange" /> Invite Member
             </h2>
 
             <div>
-              <label className="block text-[10px] font-mono text-aws-gray/50 uppercase mb-1">Full Name</label>
+              <label className="block text-[10px] font-mono text-black/70 uppercase mb-1">Full Name</label>
               <input
                 type="text"
                 value={inviteName}
                 onChange={(e) => setInviteName(e.target.value)}
-                className="w-full px-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-white focus:outline-none focus:border-aws-orange"
+                className="w-full px-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-black focus:outline-none focus:border-aws-orange"
                 placeholder="e.g. Sanjay Kumar"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-[10px] font-mono text-aws-gray/50 uppercase mb-1">Email Address</label>
+              <label className="block text-[10px] font-mono text-black/70 uppercase mb-1">Email Address</label>
               <div className="relative">
-                <Mail className="absolute left-2.5 top-2.5 text-aws-gray/40" size={14} />
+                <Mail className="absolute left-2.5 top-2.5 text-black/60" size={14} />
                 <input
                   type="email"
                   value={inviteEmail}
                   onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-white focus:outline-none focus:border-aws-orange font-mono"
+                  className="w-full pl-8 pr-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-black focus:outline-none focus:border-aws-orange font-mono"
                   placeholder="name@organization.com"
                   required
                 />
@@ -143,11 +143,11 @@ export const TeamPortal: React.FC = () => {
             </div>
 
             <div>
-              <label className="block text-[10px] font-mono text-aws-gray/50 uppercase mb-1">Access Role</label>
+              <label className="block text-[10px] font-mono text-black/70 uppercase mb-1">Access Role</label>
               <select
                 value={inviteRole}
                 onChange={(e) => setInviteRole(e.target.value as any)}
-                className="w-full px-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-white focus:outline-none focus:border-aws-orange font-mono"
+                className="w-full px-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-black focus:outline-none focus:border-aws-orange font-mono"
               >
                 <option value="caregiver">Caregiver (Read/Write)</option>
                 <option value="org_admin">Org Admin (Full Access)</option>
@@ -156,13 +156,13 @@ export const TeamPortal: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full py-2 bg-aws-orange hover:bg-aws-orange/90 text-aws-dark font-bold text-xs rounded flex items-center justify-center gap-1.5 transition-all mt-4"
+              className="w-full py-2 bg-aws-orange hover:bg-aws-orange/90 text-black font-bold text-xs rounded flex items-center justify-center gap-1.5 transition-all mt-4"
             >
               <UserPlus size={14} />
               <span>Send Cognito Invitation</span>
             </button>
 
-            <div className="border-t border-aws-slate pt-4 font-mono text-[9px] text-aws-gray/40 flex gap-2">
+            <div className="border-t border-aws-slate pt-4 font-mono text-[9px] text-black/50 flex gap-2">
               <Key size={12} className="text-aws-teal shrink-0" />
               <span>Cognito pool registration sends an verification email with dynamic temporary passkey.</span>
             </div>

@@ -112,19 +112,19 @@ export const Reports: React.FC = () => {
       <main className="flex-1 overflow-y-auto p-6 bg-aws-dark select-none">
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
           <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-xl font-bold text-black flex items-center gap-2">
               <ChartIcon className="text-aws-orange" size={24} />
               ANALYTICS & SAFETY REPORTS
             </h1>
-            <p className="text-xs text-aws-gray/50 mt-1 uppercase font-mono">Export-ready PDF/CSV logs & clinical summaries</p>
+            <p className="text-xs text-black/70 mt-1 uppercase font-mono">Export-ready PDF/CSV logs & clinical summaries</p>
           </div>
 
           <div className="flex items-center gap-3">
-            <span className="text-xs font-mono text-aws-gray/60 uppercase">Period:</span>
+            <span className="text-xs font-mono text-black/70 uppercase">Period:</span>
             <select
               value={period}
               onChange={(e) => setPeriod(e.target.value as any)}
-              className="bg-aws-navy border border-aws-slate rounded text-sm text-white px-3 py-1.5 focus:outline-none focus:border-aws-orange font-mono"
+              className="bg-aws-navy border border-aws-slate rounded text-sm text-black px-3 py-1.5 focus:outline-none focus:border-aws-orange font-mono"
             >
               <option value="weekly">Weekly View</option>
               <option value="monthly">Monthly View</option>
@@ -133,7 +133,7 @@ export const Reports: React.FC = () => {
             <select
               value={selectedWearerId}
               onChange={(e) => setSelectedWearerId(e.target.value)}
-              className="bg-aws-navy border border-aws-slate rounded text-sm text-white px-3 py-1.5 focus:outline-none focus:border-aws-orange font-mono"
+              className="bg-aws-navy border border-aws-slate rounded text-sm text-black px-3 py-1.5 focus:outline-none focus:border-aws-orange font-mono"
             >
               {wearersList.map(w => (
                 <option key={w.wearer_id} value={w.wearer_id}>
@@ -151,8 +151,8 @@ export const Reports: React.FC = () => {
               <TrendingUp size={20} />
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] text-aws-gray/40 uppercase font-mono">Average Stress</span>
-              <span className="text-sm font-bold text-white">
+              <span className="text-[10px] text-black/60 uppercase font-mono">Average Stress</span>
+              <span className="text-sm font-bold text-black">
                 {chartData.length > 0 ? (chartData.reduce((acc, curr) => acc + curr.Stress, 0) / chartData.length).toFixed(0) : '0'}%
               </span>
             </div>
@@ -163,8 +163,8 @@ export const Reports: React.FC = () => {
               <Award size={20} />
             </div>
             <div className="flex flex-col">
-              <span className="text-[10px] text-aws-gray/40 uppercase font-mono">Avg Heart Rate</span>
-              <span className="text-sm font-bold text-white">
+              <span className="text-[10px] text-black/60 uppercase font-mono">Avg Heart Rate</span>
+              <span className="text-sm font-bold text-black">
                 {chartData.length > 0 ? (chartData.reduce((acc, curr) => acc + curr.HeartRate, 0) / chartData.length).toFixed(0) : '0'} BPM
               </span>
             </div>
@@ -175,19 +175,19 @@ export const Reports: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Recharts stress trend chart */}
           <div className="lg:col-span-8 glass-panel p-6 rounded-lg border border-aws-slate h-[380px] flex flex-col">
-            <h2 className="text-xs font-bold text-white uppercase tracking-wider mb-4 border-b border-aws-slate pb-2">
+            <h2 className="text-xs font-bold text-black uppercase tracking-wider mb-4 border-b border-aws-slate pb-2">
               Stress & Heart Rate Trends
             </h2>
 
             <div className="flex-1 w-full text-xs">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#232F3E" />
-                  <XAxis dataKey="time" stroke="#E9EDF1" opacity={0.6} />
-                  <YAxis stroke="#E9EDF1" opacity={0.6} />
-                  <Tooltip contentStyle={{ backgroundColor: '#0F1B2D', borderColor: '#FF9900', color: '#fff' }} />
-                  <Line type="monotone" dataKey="Stress" stroke="#FF9900" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="HeartRate" stroke="#00A1C9" strokeWidth={2} dot={{ r: 2 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="time" stroke="#232F3E" opacity={0.8} />
+                  <YAxis stroke="#232F3E" opacity={0.8} />
+                  <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#EC7211', color: '#000000' }} />
+                  <Line type="monotone" dataKey="Stress" stroke="#EC7211" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                  <Line type="monotone" dataKey="HeartRate" stroke="#007CA3" strokeWidth={2} dot={{ r: 2 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -196,10 +196,10 @@ export const Reports: React.FC = () => {
           {/* Export Action Card */}
           <div className="lg:col-span-4 glass-panel p-6 rounded-lg border border-aws-orange/15 flex flex-col justify-between">
             <div>
-              <h2 className="text-xs font-bold text-white uppercase tracking-wider mb-4 border-b border-aws-slate pb-2 flex items-center gap-1.5">
+              <h2 className="text-xs font-bold text-black uppercase tracking-wider mb-4 border-b border-aws-slate pb-2 flex items-center gap-1.5">
                 <FileText size={16} className="text-aws-orange" /> Report Center
               </h2>
-              <p className="text-xs text-aws-gray/50 mb-6 font-mono">
+              <p className="text-xs text-black/70 mb-6 font-mono">
                 Download structured data summaries compliant with organization and clinical review frameworks.
               </p>
 
@@ -207,7 +207,7 @@ export const Reports: React.FC = () => {
                 <button
                   onClick={() => downloadReport('pdf')}
                   disabled={downloading}
-                  className="w-full py-3 bg-aws-orange hover:bg-aws-orange/90 text-aws-dark font-bold text-xs rounded flex items-center justify-center gap-2 transition-all"
+                  className="w-full py-3 bg-aws-orange hover:bg-aws-orange/90 text-black font-bold text-xs rounded flex items-center justify-center gap-2 transition-all"
                 >
                   <Download size={14} />
                   <span>{downloading ? 'Compiling PDF...' : 'Download PDF Report'}</span>
@@ -216,7 +216,7 @@ export const Reports: React.FC = () => {
                 <button
                   onClick={() => downloadReport('csv')}
                   disabled={downloading}
-                  className="w-full py-3 bg-aws-slate hover:bg-aws-slate/70 text-aws-orange border border-aws-orange/20 font-bold text-xs rounded flex items-center justify-center gap-2 transition-all"
+                  className="w-full py-3 bg-aws-slate hover:bg-aws-slate/75 text-black border border-aws-orange/20 font-bold text-xs rounded flex items-center justify-center gap-2 transition-all"
                 >
                   <Download size={14} />
                   <span>{downloading ? 'Compiling CSV...' : 'Download CSV Logs'}</span>
@@ -224,7 +224,7 @@ export const Reports: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-6 border-t border-aws-slate pt-4 font-mono text-[9px] text-aws-gray/40">
+            <div className="mt-6 border-t border-aws-slate pt-4 font-mono text-[9px] text-black/50">
               Report files generated securely. Enveloped fields decrypted temporarily for the duration of the stream.
             </div>
           </div>

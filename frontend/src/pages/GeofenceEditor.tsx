@@ -139,17 +139,17 @@ export const GeofenceEditor: React.FC = () => {
       <main className="flex-1 overflow-y-auto p-6 bg-aws-dark select-none">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-xl font-bold text-white flex items-center gap-2">
+            <h1 className="text-xl font-bold text-black flex items-center gap-2">
               <Map className="text-aws-orange" size={24} />
               GEOFENCE BOUNDARY CONFIGURATIONS
             </h1>
-            <p className="text-xs text-aws-gray/50 mt-1 uppercase font-mono">Lambda Stream Boundary Evaluators</p>
+            <p className="text-xs text-black/70 mt-1 uppercase font-mono">Lambda Stream Boundary Evaluators</p>
           </div>
 
           <select
             value={selectedWearerId}
             onChange={(e) => setSelectedWearerId(e.target.value)}
-            className="bg-aws-navy border border-aws-slate rounded text-sm text-white px-3 py-1.5 focus:outline-none focus:border-aws-orange font-mono"
+            className="bg-aws-navy border border-aws-slate rounded text-sm text-black px-3 py-1.5 focus:outline-none focus:border-aws-orange font-mono"
           >
             {wearersList.map(w => (
               <option key={w.wearer_id} value={w.wearer_id}>
@@ -170,17 +170,17 @@ export const GeofenceEditor: React.FC = () => {
           <div className="lg:col-span-4 flex flex-col gap-6 h-full overflow-y-auto">
             {/* Create Geofence */}
             <form onSubmit={handleCreate} className="glass-panel p-5 rounded-lg space-y-4">
-              <h2 className="text-xs font-bold text-white uppercase tracking-wider border-b border-aws-slate pb-2 flex items-center gap-1.5">
+              <h2 className="text-xs font-bold text-black uppercase tracking-wider border-b border-aws-slate pb-2 flex items-center gap-1.5">
                 <Plus size={16} className="text-aws-orange" /> Add Safe Zone
               </h2>
 
               <div>
-                <label className="block text-[10px] font-mono text-aws-gray/50 uppercase mb-1">Zone Name</label>
+                <label className="block text-[10px] font-mono text-black/70 uppercase mb-1">Zone Name</label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="w-full px-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-white focus:outline-none focus:border-aws-orange"
+                  className="w-full px-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-black focus:outline-none focus:border-aws-orange"
                   placeholder="e.g. Home, School, Park"
                   required
                 />
@@ -188,36 +188,36 @@ export const GeofenceEditor: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[10px] font-mono text-aws-gray/50 uppercase mb-1">Lat Center</label>
+                  <label className="block text-[10px] font-mono text-black/70 uppercase mb-1">Lat Center</label>
                   <input
                     type="number"
                     step="0.0001"
                     value={centerLat}
                     onChange={(e) => setCenterLat(parseFloat(e.target.value))}
-                    className="w-full px-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-white focus:outline-none focus:border-aws-orange font-mono"
+                    className="w-full px-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-black focus:outline-none focus:border-aws-orange font-mono"
                     required
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-mono text-aws-gray/50 uppercase mb-1">Lng Center</label>
+                  <label className="block text-[10px] font-mono text-black/70 uppercase mb-1">Lng Center</label>
                   <input
                     type="number"
                     step="0.0001"
                     value={centerLng}
                     onChange={(e) => setCenterLng(parseFloat(e.target.value))}
-                    className="w-full px-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-white focus:outline-none focus:border-aws-orange font-mono"
+                    className="w-full px-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-black focus:outline-none focus:border-aws-orange font-mono"
                     required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-mono text-aws-gray/50 uppercase mb-1">Radius (Meters)</label>
+                <label className="block text-[10px] font-mono text-black/70 uppercase mb-1">Radius (Meters)</label>
                 <input
                   type="number"
                   value={radiusMeters}
                   onChange={(e) => setRadiusMeters(parseInt(e.target.value))}
-                  className="w-full px-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-white focus:outline-none focus:border-aws-orange font-mono"
+                  className="w-full px-3 py-2 bg-aws-navy border border-aws-slate rounded text-xs text-black focus:outline-none focus:border-aws-orange font-mono"
                   required
                 />
               </div>
@@ -225,7 +225,7 @@ export const GeofenceEditor: React.FC = () => {
               <button
                 type="submit"
                 disabled={saving}
-                className="w-full py-2 bg-aws-orange hover:bg-aws-orange/90 text-aws-dark font-bold text-xs rounded transition-all"
+                className="w-full py-2 bg-aws-orange hover:bg-aws-orange/90 text-black font-bold text-xs rounded transition-all"
               >
                 {saving ? 'Registering boundaries...' : 'Create Safe Boundary'}
               </button>
@@ -233,7 +233,7 @@ export const GeofenceEditor: React.FC = () => {
 
             {/* List Active Geofences */}
             <div className="glass-panel p-5 rounded-lg flex-1 overflow-y-auto">
-              <h2 className="text-xs font-bold text-white uppercase tracking-wider border-b border-aws-slate pb-2 mb-3">
+              <h2 className="text-xs font-bold text-black uppercase tracking-wider border-b border-aws-slate pb-2 mb-3">
                 Active Boundaries
               </h2>
               
@@ -241,10 +241,10 @@ export const GeofenceEditor: React.FC = () => {
                 {geofences.map(fence => (
                   <div key={fence.fence_id} className="flex items-center justify-between p-3 bg-aws-navy rounded border border-aws-slate">
                     <div className="flex flex-col">
-                      <span className="text-xs font-bold text-white flex items-center gap-1">
+                      <span className="text-xs font-bold text-black flex items-center gap-1">
                         <Shield size={12} className="text-aws-teal" /> {fence.name}
                       </span>
-                      <span className="text-[10px] text-aws-gray/40 font-mono mt-0.5">
+                      <span className="text-[10px] text-black/60 font-mono mt-0.5">
                         Rad: {fence.radius_meters}m | center: {fence.coordinates?.[0]?.lat.toFixed(4)}, {fence.coordinates?.[0]?.lng.toFixed(4)}
                       </span>
                     </div>

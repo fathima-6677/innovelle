@@ -1,4 +1,4 @@
-# 🛡️ AutiGuard & AEGIS.SYS: Cloud-Native Safety & Caregiver Command Console
+# 🛡️ AutiGuard AEGIS: Cloud-Native Safety & Caregiver Command Console
 
 [![AWS Cloud](https://img.shields.io/badge/AWS-Deployments-FF9900?style=for-the-badge&logo=amazon-aws)](https://aws.amazon.com/)
 [![React](https://img.shields.io/badge/Frontend-React%20%7C%20TypeScript-blue?style=for-the-badge&logo=react)](https://react.dev/)
