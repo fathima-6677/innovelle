@@ -149,10 +149,14 @@ export const Dashboard: React.FC = () => {
     let simulatedLng = 79.8083;
     
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        simulatedLat = pos.coords.latitude;
-        simulatedLng = pos.coords.longitude;
-      });
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          simulatedLat = pos.coords.latitude;
+          simulatedLng = pos.coords.longitude;
+        },
+        (error) => console.error("Dashboard geolocation error:", error),
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
     }
     
     const interval = setInterval(() => {

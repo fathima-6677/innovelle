@@ -134,10 +134,14 @@ export const GeofenceEditor: React.FC = () => {
 
   useEffect(() => {
     if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        setCenterLat(parseFloat(pos.coords.latitude.toFixed(4)));
-        setCenterLng(parseFloat(pos.coords.longitude.toFixed(4)));
-      });
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setCenterLat(parseFloat(pos.coords.latitude.toFixed(4)));
+          setCenterLng(parseFloat(pos.coords.longitude.toFixed(4)));
+        },
+        (error) => console.error("Geolocation error:", error),
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+      );
     }
   }, []);
 
@@ -232,7 +236,8 @@ export const GeofenceEditor: React.FC = () => {
                       },
                       (error) => {
                         setMessage(`GPS retrieval failed: ${error.message}`);
-                      }
+                      },
+                      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
                     );
                   } else {
                     setMessage("Geolocation is not supported by this browser.");
