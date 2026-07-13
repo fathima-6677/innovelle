@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from '../components/Navbar';
 import { useAuthStore } from '../store/authStore';
 import { MessageSquare, Calendar, Coffee, AlertTriangle, HelpCircle, Smile } from 'lucide-react';
@@ -41,33 +41,34 @@ export const CommAssistLogs: React.FC = () => {
     fetchWearers();
   }, [token, selectedWearerId]);
 
-  useEffect(() => {
-    const fetchLogs = async () => {
-      if (!selectedWearerId) return;
-      setLoading(true);
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/v1/comms/${selectedWearerId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setLogs(data);
-        }
-      } catch {
-        // Offline fallback mock data
-        setLogs([
-          { event_id: '1', wearer_id: selectedWearerId, category_code: 'HUNGER', timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
-          { event_id: '2', wearer_id: selectedWearerId, category_code: 'RESTROOM', timestamp: new Date(Date.now() - 3600000 * 5).toISOString() },
-          { event_id: '3', wearer_id: selectedWearerId, category_code: 'ANXIETY', timestamp: new Date(Date.now() - 3600000 * 12).toISOString() },
-          { event_id: '4', wearer_id: selectedWearerId, category_code: 'DISCOMFORT', timestamp: new Date(Date.now() - 3600000 * 24).toISOString() },
-          { event_id: '5', wearer_id: selectedWearerId, category_code: 'HUNGER', timestamp: new Date(Date.now() - 3600000 * 28).toISOString() },
-        ]);
-      } finally {
-        setLoading(false);
+  const fetchLogs = useCallback(async () => {
+    if (!selectedWearerId) return;
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/comms/${selectedWearerId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setLogs(data);
       }
-    };
-    fetchLogs();
+    } catch {
+      // Offline fallback mock data
+      setLogs([
+        { event_id: '1', wearer_id: selectedWearerId, category_code: 'HUNGER', timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
+        { event_id: '2', wearer_id: selectedWearerId, category_code: 'RESTROOM', timestamp: new Date(Date.now() - 3600000 * 5).toISOString() },
+        { event_id: '3', wearer_id: selectedWearerId, category_code: 'ANXIETY', timestamp: new Date(Date.now() - 3600000 * 12).toISOString() },
+        { event_id: '4', wearer_id: selectedWearerId, category_code: 'DISCOMFORT', timestamp: new Date(Date.now() - 3600000 * 24).toISOString() },
+        { event_id: '5', wearer_id: selectedWearerId, category_code: 'HUNGER', timestamp: new Date(Date.now() - 3600000 * 28).toISOString() },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   }, [selectedWearerId, token]);
+
+  useEffect(() => {
+    fetchLogs();
+  }, [fetchLogs]);
 
   const getCategoryDetails = (code: string) => {
     switch (code.toUpperCase()) {
