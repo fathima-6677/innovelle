@@ -1,5 +1,5 @@
 import React from 'react';
-import { Heart, Activity, Battery, Wifi, AlertTriangle } from 'lucide-react';
+import { Heart, Activity, Battery, Wifi } from 'lucide-react';
 import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
 
 interface TelemetryData {

@@ -2,6 +2,7 @@ import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
+    ENVIRONMENT: str = "development"
     DYNAMODB_TABLE: str = "AutiGuardCore"
     DYNAMODB_ENDPOINT: str | None = None  # None for real DynamoDB, http://localhost:8000 for local
 
@@ -17,6 +18,8 @@ class Settings(BaseSettings):
     
     # Flags for testing/mocking
     MOCK_AWS: bool = True
+    LOCAL_ENCRYPTION_KEY: str = "XsXwWhAuOK8-KAgQ598H5VlUGVwiuCP2WKpFsEZTOpk="
+    ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     
     # Twilio (fully dispatched or mocked)
     TWILIO_ACCOUNT_SID: str | None = None

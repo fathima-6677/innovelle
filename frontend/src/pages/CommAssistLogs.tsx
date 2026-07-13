@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/Navbar';
 import { useAuthStore } from '../store/authStore';
-import { MessageSquare, Calendar, Coffee, AlertTriangle, HelpCircle, RefreshCw, Smile } from 'lucide-react';
+import { MessageSquare, Calendar, Coffee, AlertTriangle, HelpCircle, Smile } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 interface CommLog {
@@ -19,57 +19,55 @@ export const CommAssistLogs: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [filterCode, setFilterCode] = useState<string>('ALL');
 
-  const fetchWearers = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/wearers`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setWearersList(data);
-        if (data.length > 0 && !selectedWearerId) {
-          setSelectedWearerId(data[0].wearer_id);
+  useEffect(() => {
+    const fetchWearers = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/wearers`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setWearersList(data);
+          if (data.length > 0 && !selectedWearerId) {
+            setSelectedWearerId(data[0].wearer_id);
+          }
         }
+      } catch {
+        const mock = [{ wearer_id: 'wearer-99', first_name: 'Aarav', last_name: 'Sharma' }];
+        setWearersList(mock);
+        setSelectedWearerId(mock[0].wearer_id);
       }
-    } catch (e) {
-      const mock = [{ wearer_id: 'wearer-99', first_name: 'Aarav', last_name: 'Sharma' }];
-      setWearersList(mock);
-      setSelectedWearerId(mock[0].wearer_id);
-    }
-  };
-
-  const fetchLogs = async () => {
-    if (!selectedWearerId) return;
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/comms/${selectedWearerId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setLogs(data);
-      }
-    } catch (e) {
-      // Offline fallback mock data
-      setLogs([
-        { event_id: '1', wearer_id: selectedWearerId, category_code: 'HUNGER', timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
-        { event_id: '2', wearer_id: selectedWearerId, category_code: 'RESTROOM', timestamp: new Date(Date.now() - 3600000 * 5).toISOString() },
-        { event_id: '3', wearer_id: selectedWearerId, category_code: 'ANXIETY', timestamp: new Date(Date.now() - 3600000 * 12).toISOString() },
-        { event_id: '4', wearer_id: selectedWearerId, category_code: 'DISCOMFORT', timestamp: new Date(Date.now() - 3600000 * 24).toISOString() },
-        { event_id: '5', wearer_id: selectedWearerId, category_code: 'HUNGER', timestamp: new Date(Date.now() - 3600000 * 28).toISOString() },
-      ]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
+    };
     fetchWearers();
-  }, []);
+  }, [token, selectedWearerId]);
 
   useEffect(() => {
+    const fetchLogs = async () => {
+      if (!selectedWearerId) return;
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/comms/${selectedWearerId}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setLogs(data);
+        }
+      } catch {
+        // Offline fallback mock data
+        setLogs([
+          { event_id: '1', wearer_id: selectedWearerId, category_code: 'HUNGER', timestamp: new Date(Date.now() - 3600000 * 2).toISOString() },
+          { event_id: '2', wearer_id: selectedWearerId, category_code: 'RESTROOM', timestamp: new Date(Date.now() - 3600000 * 5).toISOString() },
+          { event_id: '3', wearer_id: selectedWearerId, category_code: 'ANXIETY', timestamp: new Date(Date.now() - 3600000 * 12).toISOString() },
+          { event_id: '4', wearer_id: selectedWearerId, category_code: 'DISCOMFORT', timestamp: new Date(Date.now() - 3600000 * 24).toISOString() },
+          { event_id: '5', wearer_id: selectedWearerId, category_code: 'HUNGER', timestamp: new Date(Date.now() - 3600000 * 28).toISOString() },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
     fetchLogs();
-  }, [selectedWearerId]);
+  }, [selectedWearerId, token]);
 
   const getCategoryDetails = (code: string) => {
     switch (code.toUpperCase()) {

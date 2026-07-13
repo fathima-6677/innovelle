@@ -28,7 +28,7 @@ def decimal_to_float(obj):
 
 class DynamoDBWrapper:
     def __init__(self):
-        self.use_mock = settings.MOCK_AWS and not settings.DYNAMODB_ENDPOINT
+        self.use_mock = settings.MOCK_AWS and settings.ENVIRONMENT.lower() != "production" and not settings.DYNAMODB_ENDPOINT
         self.mock_store = {} # PK -> {SK -> Item}
 
         if not self.use_mock:

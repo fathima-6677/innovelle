@@ -59,5 +59,12 @@ def client():
 @pytest.fixture
 def auth_headers():
     # Helper to generate mock auth headers
-    token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1c2VyLTEyMyIsImN1c3RvbTtyb2xlIjoiY2FyZWdpdmVyIiwib3JnX2lkIjoiT1JHI2RlbW8tb3JnLTk5IiwiZW1haWwiOiJjYXJlZ2l2ZXJAYXV0aWd1YXJkLm9yZyJ9.signature"
+    import jwt
+    payload = {
+        "sub": "user-123",
+        "custom:role": "caregiver",
+        "org_id": "ORG#demo-org-99",
+        "email": "caregiver@autiguard.org"
+    }
+    token = jwt.encode(payload, "localSecretKey", algorithm="HS256")
     return {"Authorization": f"Bearer {token}"}

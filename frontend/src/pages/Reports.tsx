@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/Navbar';
 import { useAuthStore } from '../store/authStore';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { LineChart as ChartIcon, FileText, Download, TrendingUp, ShieldAlert, Award } from 'lucide-react';
+import { LineChart as ChartIcon, FileText, Download, TrendingUp, Award } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 interface TelemetryPoint {
@@ -19,52 +19,6 @@ export const Reports: React.FC = () => {
   const [telemetryHistory, setTelemetryHistory] = useState<TelemetryPoint[]>([]);
   const [period, setPeriod] = useState<'weekly' | 'monthly'>('weekly');
   const [downloading, setDownloading] = useState(false);
-
-  const fetchWearers = async () => {
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/wearers`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setWearersList(data);
-        if (data.length > 0 && !selectedWearerId) {
-          setSelectedWearerId(data[0].wearer_id);
-        }
-      }
-    } catch (e) {
-      const mock = [{ wearer_id: 'wearer-99', first_name: 'Aarav', last_name: 'Sharma' }];
-      setWearersList(mock);
-      setSelectedWearerId(mock[0].wearer_id);
-    }
-  };
-
-  const fetchTelemetry = async () => {
-    if (!selectedWearerId) return;
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/telemetry/${selectedWearerId}?range=${period === 'weekly' ? '7d' : '30d'}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setTelemetryHistory(data);
-      }
-    } catch (e) {
-      // Mock chart history
-      const now = Date.now();
-      const points: TelemetryPoint[] = [];
-      const steps = period === 'weekly' ? 7 : 30;
-      for (let i = steps; i >= 0; i--) {
-        points.push({
-          timestamp: new Date(now - i * 86400000).toISOString(),
-          heart_rate: Math.floor(70 + Math.random() * 25),
-          stress_index: Math.floor(20 + Math.random() * 50),
-          risk_level: Math.random() > 0.8 ? 'ELEVATED' : 'NORMAL'
-        });
-      }
-      setTelemetryHistory(points);
-    }
-  };
 
   const downloadReport = async (format: 'pdf' | 'csv') => {
     if (!selectedWearerId) return;
@@ -84,7 +38,7 @@ export const Reports: React.FC = () => {
         a.click();
         a.remove();
       }
-    } catch (e) {
+    } catch {
       alert("Failed to download report. Running in offline/development mock mode.");
     } finally {
       setDownloading(false);
@@ -92,12 +46,56 @@ export const Reports: React.FC = () => {
   };
 
   useEffect(() => {
+    const fetchWearers = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/wearers`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setWearersList(data);
+          if (data.length > 0 && !selectedWearerId) {
+            setSelectedWearerId(data[0].wearer_id);
+          }
+        }
+      } catch {
+        const mock = [{ wearer_id: 'wearer-99', first_name: 'Aarav', last_name: 'Sharma' }];
+        setWearersList(mock);
+        setSelectedWearerId(mock[0].wearer_id);
+      }
+    };
     fetchWearers();
-  }, []);
+  }, [token, selectedWearerId]);
 
   useEffect(() => {
+    const fetchTelemetry = async () => {
+      if (!selectedWearerId) return;
+      try {
+        const res = await fetch(`${API_BASE_URL}/api/v1/telemetry/${selectedWearerId}?range=${period === 'weekly' ? '7d' : '30d'}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setTelemetryHistory(data);
+        }
+      } catch {
+        // Mock chart history
+        const now = Date.now();
+        const points: TelemetryPoint[] = [];
+        const steps = period === 'weekly' ? 7 : 30;
+        for (let i = steps; i >= 0; i--) {
+          points.push({
+            timestamp: new Date(now - i * 86400000).toISOString(),
+            heart_rate: Math.floor(70 + Math.random() * 25),
+            stress_index: Math.floor(20 + Math.random() * 50),
+            risk_level: Math.random() > 0.8 ? 'ELEVATED' : 'NORMAL'
+          });
+        }
+        setTelemetryHistory(points);
+      }
+    };
     fetchTelemetry();
-  }, [selectedWearerId, period]);
+  }, [selectedWearerId, period, token]);
 
   const chartData = telemetryHistory.map(pt => ({
     time: new Date(pt.timestamp).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),

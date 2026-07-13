@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Navbar } from '../components/Navbar';
 import { VitalsStrip } from '../components/VitalsStrip';
 import { AlertFeed, AlertItemData } from '../components/AlertFeed';
 import { CustomMapContainer } from '../components/MapContainer';
 import { useAuthStore } from '../store/authStore';
-import { Activity, ShieldAlert, CheckCircle2, User } from 'lucide-react';
+import { Activity, ShieldAlert, User } from 'lucide-react';
 import { API_BASE_URL, WS_BASE_URL } from '../config';
 
 interface TelemetryPoint {
@@ -34,7 +34,8 @@ export const Dashboard: React.FC = () => {
   const socketRef = useRef<WebSocket | null>(null);
 
   // Fetch Wearers List
-  const fetchWearers = async () => {
+  const fetchWearers = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/wearers`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -46,18 +47,21 @@ export const Dashboard: React.FC = () => {
           setSelectedWearerId(data[0].wearer_id);
         }
       }
-    } catch (e) {
+    } catch {
       // Offline fallback: load mock wearer
       const mockWearers = [
         { wearer_id: 'wearer-99', first_name: 'Aarav', last_name: 'Sharma', dob: '2016-04-12' }
       ];
       setWearersList(mockWearers);
       setSelectedWearerId(mockWearers[0].wearer_id);
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [token, selectedWearerId]);
 
   // Fetch Alerts List
-  const fetchAlerts = async () => {
+  const fetchAlerts = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/alerts`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -66,10 +70,12 @@ export const Dashboard: React.FC = () => {
         const data = await res.json();
         setAlerts(data.filter((a: any) => a.ack_status === 'unacknowledged'));
       }
-    } catch (e) {
+    } catch {
       // Offline fallback
+    } finally {
+      setLoading(false);
     }
-  };
+  }, [token]);
 
   // Acknowledge Alert
   const handleAcknowledge = async (wearerId: string, alertId: string) => {
@@ -82,7 +88,7 @@ export const Dashboard: React.FC = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchAlerts();
-    } catch (e) {
+    } catch {
       console.log("Could not update status on server, offline fallback succeeded optimistically.");
     }
   };
@@ -91,14 +97,14 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchWearers();
     fetchAlerts();
-  }, []);
+  }, [fetchWearers, fetchAlerts]);
 
   useEffect(() => {
     if (!selectedWearerId) return;
 
     // Try to connect to WebSocket API
     const orgId = user?.orgId || 'demo-org-99';
-     const wsUrl = `${WS_BASE_URL}/api/v1/ws/${encodeURIComponent(orgId)}`;
+    const wsUrl = `${WS_BASE_URL}/api/v1/ws/${encodeURIComponent(orgId)}`;
     
     socketRef.current = new WebSocket(wsUrl);
 
@@ -127,8 +133,8 @@ export const Dashboard: React.FC = () => {
             fetchAlerts();
           }
         }
-      } catch (e) {
-        console.error(e);
+      } catch (err) {
+        console.error(err);
       }
     };
 
@@ -173,7 +179,7 @@ export const Dashboard: React.FC = () => {
       clearInterval(interval);
       if (socketRef.current) socketRef.current.close();
     };
-  }, [selectedWearerId]);
+  }, [selectedWearerId, user, fetchAlerts]);
 
   const activeWearer = wearersList.find(w => w.wearer_id === selectedWearerId);
   const activeAlertsCount = alerts.length;

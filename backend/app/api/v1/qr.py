@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends, Header, HTTPException
-from app.core.security import get_current_user
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from app.core.security import get_current_user, get_optional_user
 from app.services.qr_service import qr_service
 from app.schemas.qr import QRTieredResponse
 
@@ -16,7 +16,10 @@ def rotate_qr(wearer_id: str, current_user: dict = Depends(get_current_user)):
 
 # Public resolution endpoint - no global BearerAuth guard, rate-limited via WAF
 @router.get("/qr/resolve/{token}", response_model=QRTieredResponse)
-def resolve_qr(token: str, x_scanner_role: str | None = Header(default="public")):
-    """Public unauthenticated endpoint to resolve tiered wearer details from scanned QR token"""
-    # Accept scanner role via custom header or evaluate from token context
-    return qr_service.resolve_qr_token(token, scanner_role=x_scanner_role)
+def resolve_qr(token: str, request: Request):
+    """Public/Authenticated endpoint to resolve tiered wearer details from scanned QR token"""
+    user = get_optional_user(request)
+    role = "public"
+    if user:
+        role = user.get("custom:role") or (user.get("cognito:groups", ["caregiver"])[0] if user.get("cognito:groups") else "caregiver")
+    return qr_service.resolve_qr_token(token, scanner_role=role)

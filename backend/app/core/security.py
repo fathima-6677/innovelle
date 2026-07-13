@@ -11,9 +11,9 @@ import boto3
 security_bearer = HTTPBearer()
 
 # Standard KMS/Local Cryptography key setup for mock/real cases
-# For mock purposes, we generate a persistent Fernet key or use a fallback.
-MOCK_FERNET_KEY = Fernet.generate_key()
-cipher = Fernet(MOCK_FERNET_KEY)
+# For mock purposes, we load a persistent Fernet key from configuration.
+encryption_key = settings.LOCAL_ENCRYPTION_KEY.encode()
+cipher = Fernet(encryption_key)
 
 # 1. KMS Field-Level Encryption / Decryption Wrapper
 def encrypt_field(text: str) -> str:
@@ -64,36 +64,40 @@ class RoleChecker:
     def __call__(self, creds: HTTPAuthorizationCredentials = Depends(security_bearer)) -> dict:
         token = creds.credentials
         
-        # Local bypass for mock mode
-        if settings.MOCK_AWS:
+        # Local bypass for mock mode - only enabled in non-production
+        if settings.MOCK_AWS and settings.ENVIRONMENT.lower() != "production":
             try:
                 # First try verifying with local secret key
                 decoded = jwt.decode(token, "localSecretKey", algorithms=["HS256"])
-                user_role = decoded.get("custom:role", "caregiver")
-                if user_role not in self.allowed_roles:
-                    raise HTTPException(
-                        status_code=status.HTTP_403_FORBIDDEN,
-                        detail="Access denied: insufficient permissions"
-                    )
-                return decoded
-            except Exception:
+            except jwt.ExpiredSignatureError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Token expired: {str(e)}"
+                )
+            except jwt.InvalidTokenError:
                 try:
                     decoded = jwt.decode(token, options={"verify_signature": False})
-                    user_role = decoded.get("custom:role", "caregiver")
-                    if user_role not in self.allowed_roles:
-                        raise HTTPException(
-                            status_code=status.HTTP_403_FORBIDDEN,
-                            detail="Access denied: insufficient permissions"
-                        )
-                    return decoded
-                except Exception:
-                    # Default fallback
-                    return {
-                        "sub": "mock-user-123",
-                        "email": "caregiver@autiguard.org",
-                        "custom:role": "caregiver",
-                        "org_id": "ORG#demo-org-99"
-                    }
+                except jwt.InvalidTokenError as e:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail=f"Invalid or malformed token: {str(e)}"
+                    )
+            
+            user_role = decoded.get("custom:role", "caregiver")
+            if user_role not in self.allowed_roles:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Access denied: insufficient permissions"
+                )
+            if "sub" not in decoded:
+                decoded["sub"] = "mock-user-123"
+            if "email" not in decoded:
+                decoded["email"] = "caregiver@autiguard.org"
+            if "custom:role" not in decoded:
+                decoded["custom:role"] = user_role
+            if "org_id" not in decoded:
+                decoded["org_id"] = "ORG#demo-org-99"
+            return decoded
 
         # Real Cognito Verification
         try:
@@ -141,3 +145,69 @@ class RoleChecker:
 get_current_user = RoleChecker(["super_admin", "org_admin", "caregiver"])
 get_org_admin = RoleChecker(["super_admin", "org_admin"])
 get_super_admin = RoleChecker(["super_admin"])
+
+def get_optional_user(request: Request) -> dict | None:
+    auth_header = request.headers.get("Authorization")
+    if not auth_header:
+        return None
+    
+    parts = auth_header.split()
+    if len(parts) != 2 or parts[0].lower() != "bearer":
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Malformed Authorization header"
+        )
+        
+    token = parts[1]
+    
+    # Local bypass for mock mode - only enabled in non-production
+    if settings.MOCK_AWS and settings.ENVIRONMENT.lower() != "production":
+        try:
+            decoded = jwt.decode(token, "localSecretKey", algorithms=["HS256"])
+        except jwt.ExpiredSignatureError as e:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=f"Token expired: {str(e)}"
+            )
+        except jwt.InvalidTokenError:
+            try:
+                decoded = jwt.decode(token, options={"verify_signature": False})
+            except jwt.InvalidTokenError as e:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Invalid or malformed token: {str(e)}"
+                )
+        if "custom:role" not in decoded:
+            decoded["custom:role"] = "caregiver"
+        return decoded
+        
+    # Real Cognito Verification
+    try:
+        headers = jwt.get_unverified_header(token)
+        kid = headers.get("kid")
+        
+        jwks_url = settings.COGNITO_JWKS_URL or f"https://cognito-idp.{settings.AWS_DEFAULT_REGION}.amazonaws.com/{settings.COGNITO_USER_POOL_ID}/.well-known/jwks.json"
+        jwks = requests.get(jwks_url).json()
+        
+        key_data = None
+        for key in jwks.get("keys", []):
+            if key.get("kid") == kid:
+                key_data = key
+                break
+                
+        if not key_data:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token kid")
+            
+        public_key = jwt.algorithms.RSAAlgorithm.from_jwk(json.dumps(key_data))
+        decoded = jwt.decode(
+            token,
+            public_key,
+            algorithms=["RS256"],
+            audience=settings.COGNITO_CLIENT_ID
+        )
+        return decoded
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Token validation failed: {str(e)}"
+        )

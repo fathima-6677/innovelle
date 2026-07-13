@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, User, ShieldAlert, Map, MessageSquare, LineChart, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, User, Map, MessageSquare, LineChart, Settings, LogOut } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 interface SidebarProps {

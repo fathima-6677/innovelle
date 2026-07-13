@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Navbar } from '../components/Navbar';
 import { useAuthStore } from '../store/authStore';
-import { Users, UserPlus, Key, Trash2, Mail, ShieldAlert } from 'lucide-react';
+import { Users, UserPlus, Key, Trash2, Mail } from 'lucide-react';
 
 interface TeamMember {
   userId: string;

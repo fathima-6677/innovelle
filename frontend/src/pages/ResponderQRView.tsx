@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Shield, Phone, AlertCircle, Heart, Lock, CheckCircle2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Shield, Phone, Heart, Lock, CheckCircle2 } from 'lucide-react';
+import { useAuthStore } from '../store/authStore';
 import { API_BASE_URL } from '../config';
 
 interface ResponderQRViewProps {
@@ -19,19 +20,23 @@ interface ResolvedQRData {
 }
 
 export const ResponderQRView: React.FC<ResponderQRViewProps> = ({ token }) => {
+  const { token: authStoreToken } = useAuthStore();
   const [data, setData] = useState<ResolvedQRData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [role, setRole] = useState<'public' | 'responder'>('public');
 
-  const fetchResolvedData = async (activeRole: 'public' | 'responder') => {
+  const fetchResolvedData = useCallback(async (activeRole: 'public' | 'responder') => {
     setLoading(true);
     setError('');
     try {
+      const headers: Record<string, string> = {};
+      if (activeRole === 'responder' && authStoreToken) {
+        headers['Authorization'] = `Bearer ${authStoreToken}`;
+      }
+      
       const res = await fetch(`${API_BASE_URL}/api/v1/qr/resolve/${token}`, {
-        headers: {
-          'X-Scanner-Role': activeRole
-        }
+        headers
       });
       if (res.ok) {
         const result = await res.json();
@@ -40,7 +45,7 @@ export const ResponderQRView: React.FC<ResponderQRViewProps> = ({ token }) => {
         const errData = await res.json();
         setError(errData.detail || 'Failed to resolve emergency identity token.');
       }
-    } catch (e) {
+    } catch {
       // Mock resolution if backend is not reachable locally
       if (token) {
         if (activeRole === 'public') {
@@ -67,11 +72,11 @@ export const ResponderQRView: React.FC<ResponderQRViewProps> = ({ token }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token, authStoreToken]);
 
   useEffect(() => {
     fetchResolvedData(role);
-  }, [token, role]);
+  }, [role, fetchResolvedData]);
 
   if (loading && !data) {
     return (

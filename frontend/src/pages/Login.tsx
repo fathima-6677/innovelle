@@ -1,4 +1,3 @@
-import { signIn, fetchAuthSession } from "aws-amplify/auth";
 import React, { useState } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { Shield, Eye, EyeOff, Lock, Mail, ArrowRight } from 'lucide-react';

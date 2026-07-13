@@ -1,5 +1,5 @@
 import React from 'react';
-import { Bell, RefreshCw, Server, AlertTriangle } from 'lucide-react';
+import { Bell, RefreshCw, Server } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 interface NavbarProps {

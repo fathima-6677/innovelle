@@ -1,16 +1,17 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { useAuthStore } from './store/authStore';
 import { Sidebar } from './components/Sidebar';
-import { Login } from './pages/Login';
-import { Dashboard } from './pages/Dashboard';
-import { WearerProfile } from './pages/WearerProfile';
-import { GeofenceEditor } from './pages/GeofenceEditor';
-import { CommAssistLogs } from './pages/CommAssistLogs';
-import { Reports } from './pages/Reports';
-import { TeamPortal } from './pages/TeamPortal';
-import { Settings } from './pages/Settings';
-import { ResponderQRView } from './pages/ResponderQRView';
 import './App.css';
+
+const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
+const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const WearerProfile = lazy(() => import('./pages/WearerProfile').then(m => ({ default: m.WearerProfile })));
+const GeofenceEditor = lazy(() => import('./pages/GeofenceEditor').then(m => ({ default: m.GeofenceEditor })));
+const CommAssistLogs = lazy(() => import('./pages/CommAssistLogs').then(m => ({ default: m.CommAssistLogs })));
+const Reports = lazy(() => import('./pages/Reports').then(m => ({ default: m.Reports })));
+const TeamPortal = lazy(() => import('./pages/TeamPortal').then(m => ({ default: m.TeamPortal })));
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const ResponderQRView = lazy(() => import('./pages/ResponderQRView').then(m => ({ default: m.ResponderQRView })));
 
 function App() {
   const { isAuthenticated } = useAuthStore();
@@ -43,12 +44,20 @@ function App() {
   if (path.includes('/qr/resolve/')) {
     const parts = path.split('/qr/resolve/');
     const token = parts[parts.length - 1];
-    return <ResponderQRView token={token} />;
+    return (
+      <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-aws-dark text-black font-mono text-xs">LOADING EMERGENCY INTERFACE...</div>}>
+        <ResponderQRView token={token} />
+      </Suspense>
+    );
   }
 
   // 2. Caregiver Console Routing (Authenticated Gate)
   if (!isAuthenticated) {
-    return <Login />;
+    return (
+      <Suspense fallback={<div className="h-screen w-screen flex items-center justify-center bg-aws-dark text-black font-mono text-xs">LOADING PORTAL...</div>}>
+        <Login />
+      </Suspense>
+    );
   }
 
   const renderActivePage = () => {
@@ -79,7 +88,9 @@ function App() {
       
       {/* Content Area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {renderActivePage()}
+        <Suspense fallback={<div className="flex-1 flex items-center justify-center bg-aws-dark text-black font-mono text-xs">LOADING COMPONENT...</div>}>
+          {renderActivePage()}
+        </Suspense>
       </div>
     </div>
   );

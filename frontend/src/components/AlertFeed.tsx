@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, AlertTriangle, ShieldAlert, Check, UserCheck, Flame } from 'lucide-react';
+import { AlertCircle, AlertTriangle, ShieldAlert, Check, UserCheck } from 'lucide-react';
 
 export interface AlertItemData {
   alert_id: string;

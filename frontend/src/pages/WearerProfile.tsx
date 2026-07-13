@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from '../components/Navbar';
 import { useAuthStore } from '../store/authStore';
-import { User, ShieldAlert, Key, Eye, RefreshCw, Save, ArrowRight } from 'lucide-react';
+import { User, Key, RefreshCw, Save, ArrowRight } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 export const WearerProfile: React.FC = () => {
@@ -23,7 +23,7 @@ export const WearerProfile: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
-  const fetchWearers = async () => {
+  const fetchWearers = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/wearers`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -35,7 +35,7 @@ export const WearerProfile: React.FC = () => {
           setSelectedWearerId(data[0].wearer_id);
         }
       }
-    } catch (e) {
+    } catch {
       // offline fallback
       const mock = [{
         wearer_id: 'wearer-99',
@@ -49,9 +49,29 @@ export const WearerProfile: React.FC = () => {
       setWearersList(mock);
       setSelectedWearerId(mock[0].wearer_id);
     }
-  };
+  }, [token, selectedWearerId]);
 
-  const loadWearerProfile = () => {
+  const triggerQrRotation = useCallback(async () => {
+    if (!selectedWearerId) return;
+    setRotating(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/qr/${selectedWearerId}/rotate`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setQrPayload(data.qr_payload);
+      }
+    } catch {
+      // Local signed token mock
+      setQrPayload('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ3ZWFyZXItOTkiLCJleHAiOjE3OTIwMDAwMDB9.signature');
+    } finally {
+      setRotating(false);
+    }
+  }, [selectedWearerId, token]);
+
+  const loadWearerProfile = useCallback(() => {
     const active = wearersList.find(w => w.wearer_id === selectedWearerId);
     if (active) {
       setFirstName(active.first_name || '');
@@ -62,7 +82,7 @@ export const WearerProfile: React.FC = () => {
       setMedications(active.medications || '');
       triggerQrRotation();
     }
-  };
+  }, [selectedWearerId, wearersList, triggerQrRotation]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,40 +115,20 @@ export const WearerProfile: React.FC = () => {
       } else {
         setMessage('Error saving profile.');
       }
-    } catch (e) {
+    } catch {
       setMessage('Offline simulation: Profile changes cached locally. KMS key validation simulated.');
     } finally {
       setSaving(false);
     }
   };
 
-  const triggerQrRotation = async () => {
-    if (!selectedWearerId) return;
-    setRotating(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/qr/${selectedWearerId}/rotate`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setQrPayload(data.qr_payload);
-      }
-    } catch (e) {
-      // Local signed token mock
-      setQrPayload('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ3ZWFyZXItOTkiLCJleHAiOjE3OTIwMDAwMDB9.signature');
-    } finally {
-      setRotating(false);
-    }
-  };
-
   useEffect(() => {
     fetchWearers();
-  }, []);
+  }, [fetchWearers]);
 
   useEffect(() => {
     loadWearerProfile();
-  }, [selectedWearerId, wearersList]);
+  }, [loadWearerProfile]);
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden">

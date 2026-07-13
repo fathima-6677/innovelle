@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Circle, Polygon, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -21,7 +21,7 @@ const wearerIcon = L.divIcon({
   iconAnchor: [16, 16]
 });
 
-const defaultIcon = L.divIcon({
+const _defaultIcon = L.divIcon({
   html: defaultIconSvg,
   className: 'custom-default-marker',
   iconSize: [24, 24],

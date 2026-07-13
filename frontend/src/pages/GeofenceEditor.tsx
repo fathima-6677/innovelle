@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from '../components/Navbar';
 import { useAuthStore } from '../store/authStore';
 import { Map, Plus, Trash2, Shield } from 'lucide-react';
@@ -20,7 +20,7 @@ export const GeofenceEditor: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
 
-  const fetchWearers = async () => {
+  const fetchWearers = useCallback(async () => {
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/wearers`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -32,14 +32,14 @@ export const GeofenceEditor: React.FC = () => {
           setSelectedWearerId(data[0].wearer_id);
         }
       }
-    } catch (e) {
+    } catch {
       const mock = [{ wearer_id: 'wearer-99', first_name: 'Aarav', last_name: 'Sharma' }];
       setWearersList(mock);
       setSelectedWearerId(mock[0].wearer_id);
     }
-  };
+  }, [token, selectedWearerId]);
 
-  const fetchGeofences = async () => {
+  const fetchGeofences = useCallback(async () => {
     if (!selectedWearerId) return;
     try {
       const res = await fetch(`${API_BASE_URL}/api/v1/geofences/${selectedWearerId}`, {
@@ -49,7 +49,7 @@ export const GeofenceEditor: React.FC = () => {
         const data = await res.json();
         setGeofences(data);
       }
-    } catch (e) {
+    } catch {
       // offline mock
       setGeofences([
         {
@@ -62,7 +62,7 @@ export const GeofenceEditor: React.FC = () => {
         }
       ]);
     }
-  };
+  }, [selectedWearerId, token]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,7 +92,7 @@ export const GeofenceEditor: React.FC = () => {
         setName('');
         fetchGeofences();
       }
-    } catch (e) {
+    } catch {
       // offline simulation add
       const newFence = {
         fence_id: `fence-${Date.now()}`,
@@ -119,18 +119,18 @@ export const GeofenceEditor: React.FC = () => {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
-    } catch (e) {
+    } catch {
       console.log("Could not delete on server, offline fallback updated.");
     }
   };
 
   useEffect(() => {
     fetchWearers();
-  }, []);
+  }, [fetchWearers]);
 
   useEffect(() => {
     fetchGeofences();
-  }, [selectedWearerId]);
+  }, [fetchGeofences]);
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -210,6 +210,29 @@ export const GeofenceEditor: React.FC = () => {
                   />
                 </div>
               </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                      (position) => {
+                        setCenterLat(parseFloat(position.coords.latitude.toFixed(4)));
+                        setCenterLng(parseFloat(position.coords.longitude.toFixed(4)));
+                        setMessage("GPS location retrieved successfully.");
+                      },
+                      (error) => {
+                        setMessage(`GPS retrieval failed: ${error.message}`);
+                      }
+                    );
+                  } else {
+                    setMessage("Geolocation is not supported by this browser.");
+                  }
+                }}
+                className="w-full py-1.5 bg-aws-navy border border-aws-slate hover:bg-aws-navy/80 text-black font-semibold text-[10px] rounded transition-all flex items-center justify-center gap-1"
+              >
+                <Map size={12} className="text-aws-orange" /> Use Current GPS Location
+              </button>
 
               <div>
                 <label className="block text-[10px] font-mono text-black/70 uppercase mb-1">Radius (Meters)</label>
