@@ -178,7 +178,7 @@ export const GeofenceEditor: React.FC = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[500px]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:h-[600px]">
           {/* Geofence Form & List */}
           <div className="lg:col-span-4 flex flex-col gap-6 h-full overflow-y-auto">
             {/* Create Geofence */}
@@ -232,7 +232,6 @@ export const GeofenceEditor: React.FC = () => {
                       (position) => {
                         setCenterLat(parseFloat(position.coords.latitude.toFixed(4)));
                         setCenterLng(parseFloat(position.coords.longitude.toFixed(4)));
-                        setMessage("GPS location retrieved successfully.");
                       },
                       (error) => {
                         setMessage(`GPS retrieval failed: ${error.message}`);
@@ -299,7 +298,7 @@ export const GeofenceEditor: React.FC = () => {
           </div>
 
           {/* Map display */}
-          <div className="lg:col-span-8 h-full">
+          <div className="lg:col-span-8 h-[400px] lg:h-full">
             <CustomMapContainer
               latitude={centerLat}
               longitude={centerLng}

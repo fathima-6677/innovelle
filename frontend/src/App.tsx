@@ -82,7 +82,7 @@ function App() {
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-aws-dark">
+    <div className="flex flex-col md:flex-row h-screen w-screen overflow-hidden bg-aws-dark">
       {/* Sidebar Nav */}
       <Sidebar currentPage={currentPage} setCurrentPage={setCurrentPage} />
       
