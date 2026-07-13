@@ -265,28 +265,17 @@ export const WearerProfile: React.FC = () => {
               </h2>
               
               {/* Ephemeral QR representation */}
-              <div className="bg-white p-3 rounded-lg w-44 h-44 flex items-center justify-center mb-4 relative group cursor-pointer border border-aws-orange/30">
-                {/* Simulated rotating barcode representation */}
-                <div className="grid grid-cols-5 gap-2 w-full h-full opacity-80">
-                  <div className="bg-aws-dark w-full h-full rounded-sm" />
-                  <div className="bg-aws-dark/50 w-full h-full rounded-sm" />
-                  <div className="bg-aws-dark w-full h-full rounded-sm" />
-                  <div className="bg-aws-dark/30 w-full h-full rounded-sm" />
-                  <div className="bg-aws-dark w-full h-full rounded-sm" />
-                  
-                  <div className="bg-aws-dark w-full h-full rounded-sm" />
-                  <div className="bg-aws-dark/20 w-full h-full rounded-sm" />
-                  <div className="bg-aws-dark w-full h-full rounded-sm" />
-                  <div className="bg-aws-dark/80 w-full h-full rounded-sm" />
-                  <div className="bg-aws-dark/10 w-full h-full rounded-sm" />
-                  
-                  <div className="bg-aws-dark/90 w-full h-full rounded-sm" />
-                  <div className="bg-aws-dark/40 w-full h-full rounded-sm" />
-                  <div className="bg-aws-dark w-full h-full rounded-sm" />
-                  <div className="bg-aws-dark/20 w-full h-full rounded-sm" />
-                  <div className="bg-aws-dark w-full h-full rounded-sm" />
-                </div>
-                <div className="absolute inset-0 flex items-center justify-center bg-aws-dark/80 opacity-0 group-hover:opacity-100 transition-all text-white text-xs font-mono p-4">
+              <div className="bg-white p-2 rounded-lg w-44 h-44 flex items-center justify-center mb-4 relative group cursor-pointer border border-aws-orange/30">
+                {qrPayload ? (
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/qr/resolve/${qrPayload}`)}`}
+                    alt="Caregiver QR Identity Code"
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <div className="text-black font-mono text-[10px] animate-pulse">GENERATING QR...</div>
+                )}
+                <div className="absolute inset-0 flex items-center justify-center bg-aws-dark/80 opacity-0 group-hover:opacity-100 transition-all text-white text-xs font-mono p-4 text-center">
                   Scan resolves to Tiered Emergency Medical Details
                 </div>
               </div>

@@ -148,6 +148,13 @@ export const Dashboard: React.FC = () => {
     let simulatedLat = 11.9416;
     let simulatedLng = 79.8083;
     
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        simulatedLat = pos.coords.latitude;
+        simulatedLng = pos.coords.longitude;
+      });
+    }
+    
     const interval = setInterval(() => {
       // Simulate slight drift
       simulatedLat += (Math.random() - 0.5) * 0.0001;

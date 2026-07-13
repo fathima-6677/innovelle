@@ -132,6 +132,15 @@ export const GeofenceEditor: React.FC = () => {
     fetchGeofences();
   }, [fetchGeofences]);
 
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition((pos) => {
+        setCenterLat(parseFloat(pos.coords.latitude.toFixed(4)));
+        setCenterLng(parseFloat(pos.coords.longitude.toFixed(4)));
+      });
+    }
+  }, []);
+
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden">
       <Navbar />
