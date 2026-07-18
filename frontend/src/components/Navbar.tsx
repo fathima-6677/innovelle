@@ -1,7 +1,7 @@
-import React from 'react';
-import { Bell, RefreshCw, Server, Menu } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Bell, RefreshCw, Server, Menu, WifiOff } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
-import { AWS_REGION } from '../config';
+import { AWS_REGION, API_BASE_URL } from '../config';
 
 interface NavbarProps {
   onRefresh?: () => void;
@@ -10,6 +10,35 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onRefresh, isRefreshing }) => {
   const { user, setSidebarOpen } = useAuthStore();
+  const [isOnline, setIsOnline] = useState<boolean | null>(null); // null = checking
+
+  // ── Health ping every 30s ──────────────────────────────────────────────────
+  useEffect(() => {
+    let cancelled = false;
+
+    const ping = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/`, { method: 'GET', signal: AbortSignal.timeout(4000) });
+        if (!cancelled) setIsOnline(res.ok);
+      } catch {
+        if (!cancelled) setIsOnline(false);
+      }
+    };
+
+    ping(); // immediate first check
+    const timer = setInterval(ping, 30000); // re-check every 30s
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  const statusConfig = isOnline === null
+    ? { label: 'Checking', dotClass: 'bg-amber-400 animate-pulse', ringClass: 'bg-amber-400/10 border-amber-400/20', textClass: 'text-amber-500' }
+    : isOnline
+    ? { label: 'Active', dotClass: 'bg-green-500 animate-ping', ringClass: 'bg-green-500/10 border-green-500/20', textClass: 'text-green-600' }
+    : { label: 'Offline', dotClass: 'bg-red-500', ringClass: 'bg-red-500/10 border-red-500/20', textClass: 'text-red-500' };
 
   return (
     <header className="h-16 bg-aws-navy border-b border-aws-slate px-4 md:px-6 flex items-center justify-between select-none">
@@ -47,11 +76,15 @@ export const Navbar: React.FC<NavbarProps> = ({ onRefresh, isRefreshing }) => {
           </button>
         )}
 
-        {/* Global Connection Status */}
-        <div className="flex items-center gap-1.5 bg-green-500/10 border border-green-500/20 px-2 py-1 rounded">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-ping" />
-          <span className="text-[9px] md:text-[10px] text-green-600 font-mono font-semibold uppercase hidden xs:inline">Active</span>
-          <span className="text-[9px] md:text-[10px] text-green-600 font-mono font-semibold uppercase xs:hidden">Cloud</span>
+        {/* Global Connection Status — live health ping */}
+        <div className={`flex items-center gap-1.5 border px-2 py-1 rounded ${statusConfig.ringClass}`}>
+          {isOnline === false
+            ? <WifiOff size={10} className={statusConfig.textClass} />
+            : <div className={`w-1.5 h-1.5 rounded-full ${statusConfig.dotClass}`} />
+          }
+          <span className={`text-[9px] md:text-[10px] font-mono font-semibold uppercase hidden xs:inline ${statusConfig.textClass}`}>
+            {statusConfig.label}
+          </span>
         </div>
 
         {/* Notification Alert Feed Indicator */}

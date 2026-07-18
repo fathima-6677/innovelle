@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.core.security import get_current_user
 from app.core.dynamodb import db
 from app.schemas.alerts import AlertItem
+from app.services.notification_service import notification_service
 import datetime
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
@@ -40,9 +41,6 @@ def list_alerts(current_user: dict = Depends(get_current_user)):
 @router.post("/{wearer_id}/acknowledge/{alert_id}")
 async def acknowledge_alert(wearer_id: str, alert_id: str, current_user: dict = Depends(get_current_user)):
     """Acknowledge an active critical/warning alert"""
-    # Alerts are stored under WEARER#<id> with SK ALERT#<timestamp>
-    # Since we don't have the exact timestamp in the path, we must find it
-    # We query GSI1 which uses GSI1PK = WEARER#<id> and GSI1SK begins with ALERT#
     all_alerts = db.query_gsi1(f"WEARER#{wearer_id}", "ALERT#")
     
     target_alert = None
@@ -54,15 +52,11 @@ async def acknowledge_alert(wearer_id: str, alert_id: str, current_user: dict = 
     if not target_alert:
         raise HTTPException(status_code=404, detail="Alert not found")
 
-    # Update alert properties
     target_alert["ack_status"] = "acknowledged"
     target_alert["ack_by"] = current_user.get("email", "caregiver@autiguard.org")
     target_alert["ack_at"] = datetime.datetime.utcnow().isoformat()
-    
-    # Save back to table
     db.put_item(target_alert)
 
-    # Broadcast alert acknowledgement update
     org_id = current_user.get("org_id", "ORG#demo-org-99")
     from app.main import ws_manager
     await ws_manager.broadcast_to_org(org_id, {
@@ -70,7 +64,6 @@ async def acknowledge_alert(wearer_id: str, alert_id: str, current_user: dict = 
         "type": "alert"
     })
 
-    # Insert administrative Audit Log
     audit_id = f"audit-{int(datetime.datetime.utcnow().timestamp())}"
     audit_log = {
         "PK": current_user.get("org_id", "ORG#demo-org-99"),
@@ -87,3 +80,61 @@ async def acknowledge_alert(wearer_id: str, alert_id: str, current_user: dict = 
     db.put_item(audit_log)
 
     return {"status": "success", "message": "Alert successfully acknowledged"}
+
+
+# ── Panic Button ──────────────────────────────────────────────────────────────
+
+@router.post("/panic/{wearer_id}", status_code=status.HTTP_201_CREATED)
+async def trigger_panic_alert(wearer_id: str, current_user: dict = Depends(get_current_user)):
+    """Manually trigger an SOS panic alert for a wearer.
+    Creates the alert, broadcasts via WebSocket, and notifies emergency contacts via SMS."""
+    now_str = datetime.datetime.utcnow().isoformat()
+    alert_id = f"alert-panic-{int(datetime.datetime.utcnow().timestamp())}"
+    org_id = current_user.get("org_id", "ORG#demo-org-99")
+
+    wearer_profile = db.get_item(f"WEARER#{wearer_id}", "PROFILE")
+    wearer_name = (
+        f"{wearer_profile.get('first_name', 'Wearer')} {wearer_profile.get('last_name', '')}".strip()
+        if wearer_profile else "Wearer"
+    )
+    contacts = wearer_profile.get("emergency_contacts", []) if wearer_profile else []
+
+    alert_item = {
+        "PK": f"WEARER#{wearer_id}",
+        "SK": f"ALERT#{now_str}",
+        "GSI1PK": f"WEARER#{wearer_id}",
+        "GSI1SK": f"ALERT#panic#{now_str}",
+        "alert_id": alert_id,
+        "wearer_id": wearer_id,
+        "wearer_name": wearer_name,
+        "type": "panic_button",
+        "severity": "critical",
+        "details": {
+            "triggered_by": current_user.get("email", "caregiver@autiguard.org"),
+            "message": f"SOS panic button manually triggered for {wearer_name}"
+        },
+        "ack_status": "unacknowledged",
+        "timestamp": now_str
+    }
+    db.put_item(alert_item)
+
+    from app.main import ws_manager
+    await ws_manager.broadcast_to_org(org_id, {
+        "wearer_id": wearer_id,
+        "type": "alert",
+        "alert_type": "panic_button"
+    })
+
+    for contact in contacts:
+        phone = contact.get("phone")
+        if phone:
+            notification_service.send_sms(
+                phone,
+                f"SOS PANIC: Emergency alert triggered for {wearer_name}. Please respond immediately."
+            )
+
+    return {
+        "status": "created",
+        "alert_id": alert_id,
+        "message": f"Panic alert created and emergency contacts notified."
+    }

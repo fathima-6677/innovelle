@@ -65,7 +65,9 @@ export const Login: React.FC = () => {
 
   const handleMfaSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (mfaCode === '123456' || mfaCode.length === 6) {
+    // In mock mode: only accept the demo PIN '123456'
+    // In production (MOCK_AWS=False): Cognito handles TOTP/SMS MFA before token issuance
+    if (mfaCode === '123456') {
       login('mock-jwt-token-mfa', {
         email,
         name: 'MFA Verified Caregiver',
@@ -73,7 +75,7 @@ export const Login: React.FC = () => {
         orgId: 'ORG#demo-org-99'
       });
     } else {
-      setError('Invalid verification code.');
+      setError('Invalid verification code. (Demo: use 123456)');
     }
   };
 

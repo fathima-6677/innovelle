@@ -79,19 +79,9 @@ export const Reports: React.FC = () => {
           setTelemetryHistory(data);
         }
       } catch {
-        // Mock chart history
-        const now = Date.now();
-        const points: TelemetryPoint[] = [];
-        const steps = period === 'weekly' ? 7 : 30;
-        for (let i = steps; i >= 0; i--) {
-          points.push({
-            timestamp: new Date(now - i * 86400000).toISOString(),
-            heart_rate: Math.floor(70 + Math.random() * 25),
-            stress_index: Math.floor(20 + Math.random() * 50),
-            risk_level: Math.random() > 0.8 ? 'ELEVATED' : 'NORMAL'
-          });
-        }
-        setTelemetryHistory(points);
+        // Backend offline: show empty state — do NOT fabricate chart data
+        // Caregivers should not see random values that could look like real telemetry
+        setTelemetryHistory([]);
       }
     };
     fetchTelemetry();
@@ -178,16 +168,24 @@ export const Reports: React.FC = () => {
             </h2>
 
             <div className="flex-1 w-full text-xs">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="time" stroke="#232F3E" opacity={0.8} />
-                  <YAxis stroke="#232F3E" opacity={0.8} />
-                  <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#EC7211', color: '#000000' }} />
-                  <Line type="monotone" dataKey="Stress" stroke="#EC7211" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
-                  <Line type="monotone" dataKey="HeartRate" stroke="#007CA3" strokeWidth={2} dot={{ r: 2 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="time" stroke="#232F3E" opacity={0.8} />
+                    <YAxis stroke="#232F3E" opacity={0.8} />
+                    <Tooltip contentStyle={{ backgroundColor: '#ffffff', borderColor: '#EC7211', color: '#000000' }} />
+                    <Line type="monotone" dataKey="Stress" stroke="#EC7211" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
+                    <Line type="monotone" dataKey="HeartRate" stroke="#007CA3" strokeWidth={2} dot={{ r: 2 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-full flex flex-col items-center justify-center gap-3 text-center">
+                  <div className="text-4xl">📊</div>
+                  <p className="text-xs font-mono text-black/50 uppercase">No telemetry data available</p>
+                  <p className="text-[10px] font-mono text-black/30">Backend offline or no readings recorded yet.<br/>Start the backend and sync the device to see trends.</p>
+                </div>
+              )}
             </div>
           </div>
 

@@ -18,6 +18,9 @@ export const CommAssistLogs: React.FC = () => {
   const [logs, setLogs] = useState<CommLog[]>([]);
   const [loading, setLoading] = useState(false);
   const [filterCode, setFilterCode] = useState<string>('ALL');
+  const [sendCode, setSendCode] = useState<string>('HUNGER');
+  const [sending, setSending] = useState(false);
+  const [sendMessage, setSendMessage] = useState('');
 
   useEffect(() => {
     const fetchWearers = async () => {
@@ -69,6 +72,38 @@ export const CommAssistLogs: React.FC = () => {
   useEffect(() => {
     fetchLogs();
   }, [fetchLogs]);
+
+  const handleSendCue = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedWearerId) return;
+    setSending(true);
+    setSendMessage('');
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/comms/${selectedWearerId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ category_code: sendCode })
+      });
+      if (res.ok) {
+        setSendMessage(`✓ ${sendCode} cue sent successfully.`);
+        fetchLogs(); // refresh timeline
+      } else {
+        setSendMessage('Failed to send cue. Check backend connection.');
+      }
+    } catch {
+      setSendMessage(`✓ ${sendCode} cue logged locally (offline mode).`);
+      // Add to local state so the timeline updates immediately
+      setLogs(prev => [{
+        event_id: `local-${Date.now()}`,
+        wearer_id: selectedWearerId,
+        category_code: sendCode,
+        timestamp: new Date().toISOString()
+      }, ...prev]);
+    } finally {
+      setSending(false);
+      setTimeout(() => setSendMessage(''), 4000);
+    }
+  };
 
   const getCategoryDetails = (code: string) => {
     switch (code.toUpperCase()) {
@@ -214,6 +249,37 @@ export const CommAssistLogs: React.FC = () => {
             <div className="glass-panel p-6 rounded-lg border border-aws-slate font-mono text-[10px] text-aws-gray/70 space-y-3">
               <span className="block font-bold text-aws-teal uppercase">TIMELINE SYNC DATA</span>
               <span>Telemetry sync happens via AWS IoT Core MQTT need-code topic rules. Pushes are broadcast dynamically over persistent WebSockets.</span>
+            </div>
+
+            {/* ── Send Communication Cue ─────────────────────────── */}
+            <div className="glass-panel p-6 rounded-lg border border-aws-orange/20">
+              <h2 className="text-xs font-bold text-aws-gray uppercase tracking-wider mb-4 border-b border-aws-slate pb-2">
+                Send Communication Cue
+              </h2>
+              <p className="text-[10px] text-aws-gray/50 font-mono mb-4">Manually log a need event on behalf of the wearer.</p>
+              <form onSubmit={handleSendCue} className="flex flex-col gap-3">
+                <select
+                  value={sendCode}
+                  onChange={(e) => setSendCode(e.target.value)}
+                  className="bg-aws-navy border border-aws-slate rounded text-sm text-aws-gray px-3 py-2 focus:outline-none focus:border-aws-orange font-mono"
+                >
+                  <option value="HUNGER">Hunger Assist</option>
+                  <option value="RESTROOM">Restroom Request</option>
+                  <option value="ANXIETY">Anxiety Relief</option>
+                  <option value="DISCOMFORT">Discomfort Flag</option>
+                </select>
+                <button
+                  type="submit"
+                  disabled={sending}
+                  className="w-full py-2.5 bg-aws-orange hover:bg-aws-orange/90 disabled:opacity-60 text-black font-bold text-xs rounded flex items-center justify-center gap-2 transition-all"
+                >
+                  <MessageSquare size={14} />
+                  {sending ? 'Sending...' : 'Send Cue to Timeline'}
+                </button>
+                {sendMessage && (
+                  <p className="text-[10px] font-mono text-aws-teal text-center">{sendMessage}</p>
+                )}
+              </form>
             </div>
           </div>
         </div>

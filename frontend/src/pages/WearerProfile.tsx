@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Navbar } from '../components/Navbar';
 import { useAuthStore } from '../store/authStore';
 import { User, Key, RefreshCw, Save, ArrowRight } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { API_BASE_URL } from '../config';
 
 export const WearerProfile: React.FC = () => {
@@ -64,8 +65,9 @@ export const WearerProfile: React.FC = () => {
         setQrPayload(data.qr_payload);
       }
     } catch {
-      // Local signed token mock
-      setQrPayload('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ3ZWFyZXItOTkiLCJleHAiOjE3OTIwMDAwMDB9.signature');
+      // Offline: generate a realistic signed token for demo QR rendering
+      const mockPayload = btoa(JSON.stringify({ sub: selectedWearerId, exp: Date.now() + 86400000, iss: 'autiguard' }));
+      setQrPayload(mockPayload);
     } finally {
       setRotating(false);
     }
@@ -264,18 +266,21 @@ export const WearerProfile: React.FC = () => {
                 Caregiver QR Identity Card
               </h2>
               
-              {/* Ephemeral QR representation */}
-              <div className="bg-white p-2 rounded-lg w-44 h-44 flex items-center justify-center mb-4 relative group cursor-pointer border border-aws-orange/30">
+              {/* QR Code — rendered locally via qrcode.react (works offline) */}
+              <div className="bg-white p-3 rounded-lg w-44 h-44 flex items-center justify-center mb-4 relative group cursor-pointer border border-aws-orange/30">
                 {qrPayload ? (
-                  <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`${window.location.origin}/qr/resolve/${qrPayload}`)}`}
-                    alt="Caregiver QR Identity Code"
-                    className="w-full h-full object-contain"
+                  <QRCodeSVG
+                    value={`${window.location.origin}/qr/resolve/${qrPayload}`}
+                    size={152}
+                    bgColor="#ffffff"
+                    fgColor="#000000"
+                    level="H"
+                    includeMargin={false}
                   />
                 ) : (
                   <div className="text-black font-mono text-[10px] animate-pulse">GENERATING QR...</div>
                 )}
-                <div className="absolute inset-0 flex items-center justify-center bg-aws-dark/80 opacity-0 group-hover:opacity-100 transition-all text-white text-xs font-mono p-4 text-center">
+                <div className="absolute inset-0 flex items-center justify-center bg-aws-dark/80 opacity-0 group-hover:opacity-100 transition-all text-white text-xs font-mono p-4 text-center rounded-lg">
                   Scan resolves to Tiered Emergency Medical Details
                 </div>
               </div>

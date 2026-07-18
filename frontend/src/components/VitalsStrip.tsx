@@ -87,7 +87,14 @@ export const VitalsStrip: React.FC<VitalsStripProps> = ({ currentData, historyDa
       {/* Battery Status Widget */}
       <div className="glass-panel p-4 rounded-lg flex flex-col justify-between h-32">
         <div className="flex items-center justify-between text-xs text-aws-gray/50 uppercase font-semibold">
-          <span className="flex items-center gap-1.5"><Battery size={14} className="text-green-500" /> Battery Level</span>
+          <span className="flex items-center gap-1.5">
+            <Battery size={14} className={
+              (currentData?.battery_level ?? 100) < 25 ? 'text-red-500' :
+              (currentData?.battery_level ?? 100) < 50 ? 'text-amber-400' :
+              'text-green-500'
+            } />
+            Battery Level
+          </span>
           <span className="text-aws-gray font-mono">{currentData?.battery_level ? `${currentData.battery_level}%` : 'N/A'}</span>
         </div>
         <div className="flex items-center gap-3 mt-4">
