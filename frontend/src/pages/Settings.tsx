@@ -6,7 +6,7 @@ import { Settings as SettingsIcon, Shield, Bell, Phone, Check } from 'lucide-rea
 export const Settings: React.FC = () => {
   const { user } = useAuthStore();
   const [escalationMinutes, setEscalationMinutes] = useState(5);
-  const [primaryPhone, setPrimaryPhone] = useState('+918754617636');
+  const [primaryPhone, setPrimaryPhone] = useState('+919629455996');
   const [secondaryPhone, setSecondaryPhone] = useState('+919876543210');
   const [enableWhatsapp, setEnableWhatsapp] = useState(true);
   const [enableMfa, setEnableMfa] = useState(false);

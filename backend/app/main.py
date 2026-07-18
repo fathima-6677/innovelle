@@ -114,7 +114,7 @@ def startup_event():
                 "allergies": allergies,
                 "medications": meds,
                 "qr_tiering_rules": {"medical": "public", "contacts": "auth_only"},
-                "emergency_contacts": [{"name": "Dad", "phone": "+918754617636"}],
+                "emergency_contacts": [{"name": "Dad", "phone": "+919629455996"}],
                 "created_at": now
             }
             db.put_item(wearer_item)

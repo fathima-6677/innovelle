@@ -53,14 +53,14 @@ export const ResponderQRView: React.FC<ResponderQRViewProps> = ({ token }) => {
             tier: 1,
             first_name: 'Aarav',
             public_message: 'Autistic — may not respond verbally',
-            emergency_contact: '+918754617636'
+            emergency_contact: '+919629455996'
           });
         } else {
           setData({
             tier: 2,
             first_name: 'Aarav',
             public_message: 'Autistic — may not respond verbally',
-            emergency_contact: '+918754617636',
+            emergency_contact: '+919629455996',
             medical_notes: 'Sensory sensitivities: highly reactive to loud honking/screaming. Uses noise-canceling headphones. Safe location: local park.',
             allergies: 'Peanuts, Shellfish',
             medications: 'None'

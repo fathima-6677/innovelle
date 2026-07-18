@@ -97,7 +97,7 @@ export const WearerProfile: React.FC = () => {
       allergies,
       medications,
       qr_tiering_rules: {},
-      emergency_contacts: [{"name": "Mom", "phone": "+918754617636"}]
+      emergency_contacts: [{"name": "Mom", "phone": "+919629455996"}]
     };
 
     try {

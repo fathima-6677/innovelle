@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     TWILIO_ACCOUNT_SID: str | None = None
     TWILIO_AUTH_TOKEN: str | None = None
     TWILIO_WHATSAPP_FROM: str = "whatsapp:+14155238886"
-    TWILIO_WHATSAPP_TO: str = "whatsapp:+918754617636"
+    TWILIO_WHATSAPP_TO: str = "whatsapp:+919629455996"
     TWILIO_TEMPLATE_SID: str | None = None
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
