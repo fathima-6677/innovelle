@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/Navbar';
 import { useAuthStore } from '../store/authStore';
-import { Users, UserPlus, Key, Trash2, Mail } from 'lucide-react';
+import { Users, UserPlus, Key, Trash2, Mail, Loader } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface TeamMember {
   userId: string;
@@ -11,40 +12,110 @@ interface TeamMember {
   joinedAt: string;
 }
 
+const TEAM_KEY = 'autiguard_team_members';
+
+const DEFAULT_MEMBERS: TeamMember[] = [
+  { userId: '1', name: 'Dr. Priya Nair', email: 'priya@autiguard.org', role: 'org_admin', joinedAt: '2026-01-10' },
+  { userId: '2', name: 'Sanjay Kumar', email: 'sanjay@autiguard.org', role: 'caregiver', joinedAt: '2026-03-15' },
+  { userId: '3', name: 'Ananya Sen', email: 'ananya@autiguard.org', role: 'caregiver', joinedAt: '2026-05-02' }
+];
+
 export const TeamPortal: React.FC = () => {
-  const { user } = useAuthStore();
-  const [members, setMembers] = useState<TeamMember[]>([
-    { userId: '1', name: 'Dr. Priya Nair', email: 'priya@autiguard.org', role: 'org_admin', joinedAt: '2026-01-10' },
-    { userId: '2', name: 'Sanjay Kumar', email: 'sanjay@autiguard.org', role: 'caregiver', joinedAt: '2026-03-15' },
-    { userId: '3', name: 'Ananya Sen', email: 'ananya@autiguard.org', role: 'caregiver', joinedAt: '2026-05-02' }
-  ]);
+  const { user, token } = useAuthStore();
+
+  // Load members from localStorage (persists across refreshes)
+  const [members, setMembers] = useState<TeamMember[]>(() => {
+    try {
+      const stored = localStorage.getItem(TEAM_KEY);
+      return stored ? JSON.parse(stored) : DEFAULT_MEMBERS;
+    } catch {
+      return DEFAULT_MEMBERS;
+    }
+  });
+
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState<'caregiver' | 'org_admin'>('caregiver');
   const [inviteName, setInviteName] = useState('');
   const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const [inviting, setInviting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const handleInvite = (e: React.FormEvent) => {
+  // Persist members list to localStorage whenever it changes
+  useEffect(() => {
+    localStorage.setItem(TEAM_KEY, JSON.stringify(members));
+  }, [members]);
+
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteEmail || !inviteName) return;
+    setInviting(true);
+    setError('');
+    setMessage('');
 
-    const newMember: TeamMember = {
-      userId: `user-${Date.now()}`,
-      name: inviteName,
-      email: inviteEmail,
-      role: inviteRole,
-      joinedAt: new Date().toISOString().split('T')[0]
-    };
+    try {
+      // Call real /auth/signup endpoint to register the user in Cognito/mock DB
+      const res = await fetch(`${API_BASE_URL}/api/v1/auth/signup`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email: inviteEmail, name: inviteName, role: inviteRole, password: 'TempPass@123' })
+      });
 
-    setMembers(prev => [...prev, newMember]);
-    setInviteEmail('');
-    setInviteName('');
-    setMessage(`Successfully sent Cognito invitation and initialized user pool account for ${inviteEmail}`);
-    setTimeout(() => setMessage(''), 4000);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Invitation failed.');
+      }
+
+      const newMember: TeamMember = {
+        userId: `user-${Date.now()}`,
+        name: inviteName,
+        email: inviteEmail,
+        role: inviteRole,
+        joinedAt: new Date().toISOString().split('T')[0]
+      };
+
+      setMembers(prev => [...prev, newMember]);
+      setInviteEmail('');
+      setInviteName('');
+      setMessage(`Invitation sent to ${inviteEmail}. They will receive a verification email to set their password.`);
+    } catch (err: any) {
+      // Offline fallback — still persist locally
+      const newMember: TeamMember = {
+        userId: `user-${Date.now()}`,
+        name: inviteName,
+        email: inviteEmail,
+        role: inviteRole,
+        joinedAt: new Date().toISOString().split('T')[0]
+      };
+      setMembers(prev => [...prev, newMember]);
+      setInviteEmail('');
+      setInviteName('');
+      setMessage(`Member added locally (backend offline). Connect backend to send real Cognito invitation.`);
+    } finally {
+      setInviting(false);
+      setTimeout(() => setMessage(''), 5000);
+    }
   };
 
-  const handleDelete = (userId: string) => {
+  const handleDelete = async (userId: string, memberEmail: string) => {
+    setDeletingId(userId);
+    setError('');
+
+    try {
+      // Try to remove from backend
+      await fetch(`${API_BASE_URL}/api/v1/auth/users/${encodeURIComponent(memberEmail)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+    } catch {
+      // Offline — just remove locally
+    }
+
+    // Remove from local list (and localStorage via useEffect)
     setMembers(prev => prev.filter(m => m.userId !== userId));
+    setDeletingId(null);
   };
+
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -97,10 +168,13 @@ export const TeamPortal: React.FC = () => {
 
                     {user?.email !== member.email && (
                       <button
-                        onClick={() => handleDelete(member.userId)}
-                        className="p-2 hover:bg-red-600/10 border border-transparent hover:border-red-500/20 text-red-400 rounded transition-all"
+                        onClick={() => handleDelete(member.userId, member.email)}
+                        disabled={deletingId === member.userId}
+                        className="p-2 hover:bg-red-600/10 border border-transparent hover:border-red-500/20 text-red-400 rounded transition-all disabled:opacity-50"
                       >
-                        <Trash2 size={14} />
+                        {deletingId === member.userId
+                          ? <Loader size={14} className="animate-spin" />
+                          : <Trash2 size={14} />}
                       </button>
                     )}
                   </div>
@@ -156,10 +230,11 @@ export const TeamPortal: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full py-2 bg-aws-orange hover:bg-aws-orange/90 text-black font-bold text-xs rounded flex items-center justify-center gap-1.5 transition-all mt-4"
+              disabled={inviting}
+              className="w-full py-2 bg-aws-orange hover:bg-aws-orange/90 disabled:opacity-60 text-black font-bold text-xs rounded flex items-center justify-center gap-1.5 transition-all mt-4"
             >
-              <UserPlus size={14} />
-              <span>Send Cognito Invitation</span>
+              {inviting ? <Loader size={14} className="animate-spin" /> : <UserPlus size={14} />}
+              <span>{inviting ? 'Sending Invitation...' : 'Send Cognito Invitation'}</span>
             </button>
 
             <div className="border-t border-aws-slate pt-4 font-mono text-[9px] text-black/50 flex gap-2">

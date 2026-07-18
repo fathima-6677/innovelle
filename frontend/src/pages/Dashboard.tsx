@@ -147,6 +147,8 @@ export const Dashboard: React.FC = () => {
     // we simulate realistic coordinate drifts, heart rate changes, and stress indices.
     let simulatedLat = 11.9416;
     let simulatedLng = 79.8083;
+    // Simulate a realistic battery starting between 75-100%, slowly draining
+    let simulatedBattery = Math.floor(75 + Math.random() * 25);
     
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -164,6 +166,9 @@ export const Dashboard: React.FC = () => {
       simulatedLat += (Math.random() - 0.5) * 0.0001;
       simulatedLng += (Math.random() - 0.5) * 0.0001;
       
+      // Drain battery by ~0.1% per tick (every 2s), with slight fluctuation
+      simulatedBattery = Math.max(0, simulatedBattery - 0.1 + (Math.random() - 0.5) * 0.05);
+
       const hr = Math.floor(70 + Math.random() * 25);
       const stress = Math.floor(20 + Math.random() * 50);
       const risk = stress > 65 ? 'ELEVATED' : 'NORMAL';
@@ -173,7 +178,7 @@ export const Dashboard: React.FC = () => {
         heart_rate: hr,
         stress_index: stress,
         risk_level: risk,
-        battery_level: 95,
+        battery_level: Math.round(simulatedBattery),
         connectivity_status: 'CONNECTED',
         latitude: simulatedLat,
         longitude: simulatedLng,
@@ -191,6 +196,7 @@ export const Dashboard: React.FC = () => {
       if (socketRef.current) socketRef.current.close();
     };
   }, [selectedWearerId, user, fetchAlerts]);
+
 
   const activeWearer = wearersList.find(w => w.wearer_id === selectedWearerId);
   const activeAlertsCount = alerts.length;

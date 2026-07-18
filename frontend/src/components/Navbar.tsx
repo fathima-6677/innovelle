@@ -1,6 +1,7 @@
 import React from 'react';
 import { Bell, RefreshCw, Server, Menu } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { AWS_REGION } from '../config';
 
 interface NavbarProps {
   onRefresh?: () => void;
@@ -24,7 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onRefresh, isRefreshing }) => {
 
         <Server size={18} className="text-aws-orange shrink-0 hidden sm:block" />
         <span className="text-[10px] md:text-xs font-mono text-aws-gray/50 uppercase hidden md:inline">Region:</span>
-        <span className="text-[10px] md:text-xs font-mono text-aws-gray bg-aws-slate/60 px-2 py-0.5 rounded truncate">ap-south-1</span>
+        <span className="text-[10px] md:text-xs font-mono text-aws-gray bg-aws-slate/60 px-2 py-0.5 rounded truncate">{AWS_REGION}</span>
         
         <span className="text-aws-slate hidden sm:inline">|</span>
         

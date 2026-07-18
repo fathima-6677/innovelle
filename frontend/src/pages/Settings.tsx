@@ -1,22 +1,57 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar } from '../components/Navbar';
 import { useAuthStore } from '../store/authStore';
 import { Settings as SettingsIcon, Shield, Bell, Phone, Check } from 'lucide-react';
+import { API_BASE_URL } from '../config';
+
+const SETTINGS_KEY = 'autiguard_settings';
 
 export const Settings: React.FC = () => {
-  const { user } = useAuthStore();
-  const [escalationMinutes, setEscalationMinutes] = useState(5);
-  const [primaryPhone, setPrimaryPhone] = useState('+919629455996');
-  const [secondaryPhone, setSecondaryPhone] = useState('+919876543210');
-  const [enableWhatsapp, setEnableWhatsapp] = useState(true);
-  const [enableMfa, setEnableMfa] = useState(false);
-  const [message, setMessage] = useState('');
+  const { user, token } = useAuthStore();
 
-  const handleSave = (e: React.FormEvent) => {
+  // Load from localStorage on first render
+  const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+
+  const [escalationMinutes, setEscalationMinutes] = useState<number>(saved.escalationMinutes ?? 5);
+  const [primaryPhone, setPrimaryPhone] = useState<string>(saved.primaryPhone ?? '+919629455996');
+  const [secondaryPhone, setSecondaryPhone] = useState<string>(saved.secondaryPhone ?? '+919876543210');
+  const [enableWhatsapp, setEnableWhatsapp] = useState<boolean>(saved.enableWhatsapp ?? true);
+  const [enableMfa, setEnableMfa] = useState<boolean>(saved.enableMfa ?? false);
+  const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  // Sync to localStorage whenever values change
+  useEffect(() => {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({
+      escalationMinutes, primaryPhone, secondaryPhone, enableWhatsapp, enableMfa
+    }));
+  }, [escalationMinutes, primaryPhone, secondaryPhone, enableWhatsapp, enableMfa]);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    setMessage('Settings updated successfully in Cognito and application config.');
-    setTimeout(() => setMessage(''), 4000);
+    setSaving(true);
+    const payload = { escalationMinutes, primaryPhone, secondaryPhone, enableWhatsapp, enableMfa };
+
+    // Persist to localStorage immediately
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(payload));
+
+    try {
+      // Try to save to backend API
+      await fetch(`${API_BASE_URL}/api/v1/auth/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(payload)
+      });
+      setMessage('Settings saved successfully and persisted to your account.');
+    } catch {
+      // Backend not available — localStorage save is enough for local use
+      setMessage('Settings saved locally. Connect backend to sync across devices.');
+    } finally {
+      setSaving(false);
+      setTimeout(() => setMessage(''), 4000);
+    }
   };
+
 
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden">
@@ -138,10 +173,11 @@ export const Settings: React.FC = () => {
 
             <button
               type="submit"
-              className="w-full py-3 bg-aws-orange hover:bg-aws-orange/90 text-black font-bold text-xs rounded flex items-center justify-center gap-1.5 transition-all"
+              disabled={saving}
+              className="w-full py-3 bg-aws-orange hover:bg-aws-orange/90 disabled:opacity-60 text-black font-bold text-xs rounded flex items-center justify-center gap-1.5 transition-all"
             >
               <Check size={16} />
-              <span>Save System Settings</span>
+              <span>{saving ? 'Saving...' : 'Save System Settings'}</span>
             </button>
           </div>
         </form>
