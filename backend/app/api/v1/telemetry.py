@@ -8,6 +8,11 @@ import datetime
 
 router = APIRouter(prefix="/telemetry", tags=["telemetry"])
 
+# ── Fall Detection: consecutive spike tracker ─────────────────────────────────
+# Stores the last reading that exceeded the 25 m/s² threshold per wearer.
+# A fall alert fires only when TWO CONSECUTIVE packets both exceed the threshold.
+_fall_spike_tracker: dict[str, bool] = {}   # wearer_id → was previous reading a spike?
+
 async def process_ingested_readings(wearer_id: str, readings: list[TelemetryItem]):
     """Background task to evaluate falls, geofence breaches, and trigger notifications"""
     # 1. Fetch wearers geofences
@@ -97,8 +102,13 @@ async def process_ingested_readings(wearer_id: str, readings: list[TelemetryItem
                             f"ALERT: {alert_item['wearer_name']} left safe zone '{fence.get('name')}'."
                         )
 
-        # B. Evaluate Fall Detection (Hybrid magnitude check > 25 m/s^2)
-        if reading.accel_magnitude > 25.0:
+        # B. Evaluate Fall Detection — requires 2 CONSECUTIVE packets > 25 m/s² (README spec)
+        is_spike = reading.accel_magnitude > 25.0
+        prev_was_spike = _fall_spike_tracker.get(wearer_id, False)
+        _fall_spike_tracker[wearer_id] = is_spike  # update tracker for next packet
+
+        if is_spike and prev_was_spike:
+            # Two consecutive high-magnitude readings — confirmed fall event
             alert_id = f"alert-fall-{int(datetime.datetime.utcnow().timestamp())}"
             alert_item = {
                 "PK": f"WEARER#{wearer_id}",

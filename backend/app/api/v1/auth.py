@@ -118,10 +118,89 @@ def signup(payload: SignupRequest):
                 detail=e.response["Error"]["Message"]
             )
 
+
     # Simulated Cognito Sign-up success
     return {
         "status": "success",
         "message": "User registration successfully initiated. Verification email sent.",
         "email": payload.email,
         "role": payload.role
+    }
+
+
+# ── Caregiver Settings ────────────────────────────────────────────────────────
+
+class SettingsPayload(BaseModel):
+    escalationMinutes: int = 5
+    primaryPhone: str
+    secondaryPhone: str
+    enableWhatsapp: bool = True
+    enableMfa: bool = False
+
+@router.post("/settings")
+def save_settings(payload: SettingsPayload, current_user: dict = Depends(get_current_user)):
+    """Persist caregiver notification and security settings"""
+    from app.core.dynamodb import db
+    user_email = current_user.get("email", "unknown@autiguard.org")
+
+    settings_item = {
+        "PK": f"USER#{user_email}",
+        "SK": "SETTINGS",
+        "escalation_minutes": payload.escalationMinutes,
+        "primary_phone": payload.primaryPhone,
+        "secondary_phone": payload.secondaryPhone,
+        "enable_whatsapp": payload.enableWhatsapp,
+        "enable_mfa": payload.enableMfa,
+    }
+    db.put_item(settings_item)
+
+    return {
+        "status": "success",
+        "message": "Settings saved successfully.",
+        "email": user_email
+    }
+
+
+@router.get("/settings")
+def get_settings(current_user: dict = Depends(get_current_user)):
+    """Retrieve saved caregiver settings"""
+    from app.core.dynamodb import db
+    user_email = current_user.get("email", "unknown@autiguard.org")
+    item = db.get_item(f"USER#{user_email}", "SETTINGS")
+    if not item:
+        return {}   # Return empty dict — frontend will use localStorage defaults
+    return {
+        "escalationMinutes": item.get("escalation_minutes", 5),
+        "primaryPhone": item.get("primary_phone", ""),
+        "secondaryPhone": item.get("secondary_phone", ""),
+        "enableWhatsapp": item.get("enable_whatsapp", True),
+        "enableMfa": item.get("enable_mfa", False),
+    }
+
+
+# ── Team Member Management ────────────────────────────────────────────────────
+
+@router.delete("/users/{email}")
+def delete_user(email: str, current_user: dict = Depends(get_current_user)):
+    """Remove a team member from the organization (Cognito + DB)"""
+    from app.core.config import settings as app_settings
+    import boto3
+    from botocore.exceptions import ClientError
+
+    if not app_settings.MOCK_AWS:
+        try:
+            client = boto3.client("cognito-idp", region_name=app_settings.AWS_DEFAULT_REGION)
+            client.admin_delete_user(
+                UserPoolId=app_settings.COGNITO_USER_POOL_ID,
+                Username=email
+            )
+        except ClientError as e:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=e.response["Error"]["Message"]
+            )
+
+    return {
+        "status": "success",
+        "message": f"User {email} removed from organization."
     }

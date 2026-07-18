@@ -52,11 +52,14 @@ export const AlertFeed: React.FC<AlertFeedProps> = ({ alerts, onAcknowledge }) =
 
   const getAlertReadableType = (type: string) => {
     switch (type) {
-      case 'fall_detected': return 'Critical Fall Impact';
-      case 'geofence_breach': return 'Geofence Safe Zone Breach';
-      case 'panic_button': return 'SOS Panic Alert Pressed';
-      case 'qr_scan': return 'Identity QR Scan Event';
-      default: return 'Safety Update Event';
+      case 'fall_detected':    return 'Critical Fall Impact';
+      case 'geofence_breach':  return 'Geofence Safe Zone Breach';
+      case 'panic_button':     return 'SOS Panic Alert Pressed';
+      case 'qr_scan':          return 'Identity QR Scan Event';
+      case 'audio_distress':   return 'High Noise / Distress Audio Alert';
+      case 'battery_low':      return 'Low Battery Warning';
+      case 'sos_panic':        return 'SOS Emergency Panic Button';
+      default:                 return 'Safety Update Event';
     }
   };
 

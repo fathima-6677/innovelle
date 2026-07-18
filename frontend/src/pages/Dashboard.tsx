@@ -4,8 +4,40 @@ import { VitalsStrip } from '../components/VitalsStrip';
 import { AlertFeed, AlertItemData } from '../components/AlertFeed';
 import { CustomMapContainer } from '../components/MapContainer';
 import { useAuthStore } from '../store/authStore';
-import { Activity, ShieldAlert, User } from 'lucide-react';
+import { Activity, ShieldAlert, User, WifiOff, Wifi } from 'lucide-react';
 import { API_BASE_URL, WS_BASE_URL } from '../config';
+
+// ─── Alert Chime (Web Audio API) ─────────────────────────────────────────────
+function playAlertChime() {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.4);
+    gain.gain.setValueAtTime(0.6, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
+    osc.start(ctx.currentTime);
+    osc.stop(ctx.currentTime + 0.6);
+  } catch {
+    // Audio not available — fail silently
+  }
+}
+
+// ─── Browser Push Notification ────────────────────────────────────────────────
+function sendBrowserNotification(title: string, body: string) {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    new Notification(title, { body, icon: '/vite.svg' });
+  } else if (Notification.permission !== 'denied') {
+    Notification.requestPermission().then(perm => {
+      if (perm === 'granted') new Notification(title, { body, icon: '/vite.svg' });
+    });
+  }
+}
 
 interface TelemetryPoint {
   timestamp: string;
@@ -31,7 +63,12 @@ export const Dashboard: React.FC = () => {
   const [alerts, setAlerts] = useState<AlertItemData[]>([]);
   const [loading, setLoading] = useState(false);
 
+  // WebSocket connection state
+  const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const socketRef = useRef<WebSocket | null>(null);
+  const reconnectDelayRef = useRef<number>(1000);   // starts at 1s, doubles on each failure
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prevAlertCountRef = useRef<number>(0);       // tracks alert count to detect new arrivals
 
   // Fetch Wearers List
   const fetchWearers = useCallback(async () => {
@@ -102,45 +139,75 @@ export const Dashboard: React.FC = () => {
   useEffect(() => {
     if (!selectedWearerId) return;
 
-    // Try to connect to WebSocket API
+    let isDestroyed = false;
+
+    // ── WebSocket with exponential backoff reconnect ──────────────────────────
     const orgId = user?.orgId || 'demo-org-99';
     const wsUrl = `${WS_BASE_URL}/api/v1/ws/${encodeURIComponent(orgId)}`;
-    
-    socketRef.current = new WebSocket(wsUrl);
 
-    socketRef.current.onopen = () => {
-      console.log('✅ WebSocket successfully connected to API portal');
-    };
+    const connect = () => {
+      if (isDestroyed) return;
+      setWsStatus('connecting');
+      const ws = new WebSocket(wsUrl);
+      socketRef.current = ws;
 
-    socketRef.current.onmessage = (event) => {
-      try {
-        const msg = JSON.parse(event.data);
-        if (msg.wearer_id === selectedWearerId) {
-          if (msg.type === 'telemetry') {
-            const point: TelemetryPoint = {
-              timestamp: msg.timestamp,
-              heart_rate: msg.heart_rate,
-              stress_index: msg.stress_index,
-              risk_level: msg.risk_level,
-              battery_level: msg.battery_level,
-              connectivity_status: 'CONNECTED',
-              latitude: msg.latitude,
-              longitude: msg.longitude,
-            };
-            setCurrentTelemetry(point);
-            setTelemetryHistory(prev => [...prev.slice(-20), point]);
-          } else if (msg.type === 'alert') {
-            fetchAlerts();
+      ws.onopen = () => {
+        if (isDestroyed) { ws.close(); return; }
+        console.log('✅ WebSocket connected to API portal');
+        setWsStatus('connected');
+        reconnectDelayRef.current = 1000; // reset backoff on successful connect
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.wearer_id === selectedWearerId) {
+            if (msg.type === 'telemetry') {
+              const point: TelemetryPoint = {
+                timestamp: msg.timestamp,
+                heart_rate: msg.heart_rate,
+                stress_index: msg.stress_index,
+                risk_level: msg.risk_level,
+                battery_level: msg.battery_level,
+                connectivity_status: 'CONNECTED',
+                latitude: msg.latitude,
+                longitude: msg.longitude,
+              };
+              setCurrentTelemetry(point);
+              setTelemetryHistory(prev => [...prev.slice(-20), point]);
+            } else if (msg.type === 'alert') {
+              // ── Play chime + browser notification on new alert ──────────────
+              playAlertChime();
+              sendBrowserNotification(
+                '🚨 AutiGuard Alert',
+                `New safety alert received for wearer ${selectedWearerId}`
+              );
+              fetchAlerts();
+            }
           }
+        } catch (err) {
+          console.error(err);
         }
-      } catch (err) {
-        console.error(err);
-      }
+      };
+
+      ws.onerror = () => {
+        console.warn('⚠️ WebSocket error encountered.');
+      };
+
+      ws.onclose = () => {
+        if (isDestroyed) return;
+        setWsStatus('disconnected');
+        // Exponential backoff: 1s → 2s → 4s → … max 30s
+        const delay = Math.min(reconnectDelayRef.current, 30000);
+        console.warn(`🔄 WebSocket closed. Reconnecting in ${delay / 1000}s...`);
+        reconnectTimerRef.current = setTimeout(() => {
+          reconnectDelayRef.current = delay * 2;
+          connect();
+        }, delay);
+      };
     };
 
-    socketRef.current.onerror = () => {
-      console.warn('⚠️ WebSocket disconnected. Falling back to sensor simulator engine...');
-    };
+    connect();
 
     // Telemetry Simulation loop fallback (always runs to ensure premium UX)
     // In production, when WebSocket updates arrive, it updates state. For simulation,
@@ -192,7 +259,9 @@ export const Dashboard: React.FC = () => {
     }, 2000);
 
     return () => {
+      isDestroyed = true;
       clearInterval(interval);
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (socketRef.current) socketRef.current.close();
     };
   }, [selectedWearerId, user, fetchAlerts]);
@@ -213,7 +282,19 @@ export const Dashboard: React.FC = () => {
               <Activity className="text-aws-orange" size={24} />
               COMMAND CENTER LIVE DASHBOARD
             </h1>
-            <p className="text-xs text-aws-gray/70 mt-1 uppercase font-mono">Real-time physiological & safety console</p>
+            <p className="text-xs text-aws-gray/70 mt-1 uppercase font-mono">Real-time physiological &amp; safety console</p>
+            {/* WebSocket connection status badge */}
+            <div className="flex items-center gap-1.5 mt-1">
+              {wsStatus === 'connected' && (
+                <span className="flex items-center gap-1 text-[10px] font-mono text-green-500"><Wifi size={10} /> WS CONNECTED</span>
+              )}
+              {wsStatus === 'connecting' && (
+                <span className="flex items-center gap-1 text-[10px] font-mono text-aws-orange animate-pulse"><Wifi size={10} /> WS CONNECTING...</span>
+              )}
+              {wsStatus === 'disconnected' && (
+                <span className="flex items-center gap-1 text-[10px] font-mono text-red-500"><WifiOff size={10} /> WS DISCONNECTED — RETRYING</span>
+              )}
+            </div>
           </div>
 
           {/* Wearer Selector */}
