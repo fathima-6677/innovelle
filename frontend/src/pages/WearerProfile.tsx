@@ -135,7 +135,7 @@ export const WearerProfile: React.FC = () => {
       <Navbar />
 
       <main className="flex-1 overflow-y-auto p-6 bg-aws-dark select-none">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
           <div>
             <h1 className="text-xl font-bold text-aws-gray flex items-center gap-2">
               <User className="text-aws-orange" size={24} />

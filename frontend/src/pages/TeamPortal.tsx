@@ -51,7 +51,7 @@ export const TeamPortal: React.FC = () => {
       <Navbar />
 
       <main className="flex-1 overflow-y-auto p-6 bg-aws-dark select-none">
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
           <div>
             <h1 className="text-xl font-bold text-black flex items-center gap-2">
               <Users className="text-aws-orange" size={24} />
@@ -76,18 +76,18 @@ export const TeamPortal: React.FC = () => {
 
             <div className="space-y-3">
               {members.map(member => (
-                <div key={member.userId} className="flex items-center justify-between p-4 bg-aws-navy rounded border border-aws-slate hover:border-aws-orange/20 transition-all">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-aws-slate border border-aws-orange/20 flex items-center justify-center font-bold text-aws-orange text-sm uppercase">
+                <div key={member.userId} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 bg-aws-navy rounded border border-aws-slate hover:border-aws-orange/20 transition-all gap-4">
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <div className="w-10 h-10 rounded-full bg-aws-slate border border-aws-orange/20 flex items-center justify-center font-bold text-aws-orange text-sm uppercase shrink-0">
                       {member.name[0]}
                     </div>
-                    <div>
-                      <h3 className="text-sm font-bold text-black">{member.name}</h3>
-                      <p className="text-xs text-black/60 font-mono mt-0.5">{member.email}</p>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-white truncate">{member.name}</h3>
+                      <p className="text-xs text-aws-gray/40 font-mono mt-0.5 truncate">{member.email}</p>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-4 justify-between w-full sm:w-auto sm:justify-end border-t border-aws-slate/10 pt-3 sm:pt-0 sm:border-0">
                     <div className="flex flex-col items-end">
                       <span className="text-[10px] text-aws-orange/80 bg-aws-orange/5 px-2 py-0.5 rounded border border-aws-orange/20 uppercase font-mono font-semibold">
                         {member.role}
