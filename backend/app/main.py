@@ -1,5 +1,6 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.api.v1.auth import router as auth_router
 from app.api.v1.wearers import router as wearers_router
 from app.api.v1.telemetry import router as telemetry_router
@@ -10,7 +11,16 @@ from app.api.v1.ml import router as ml_router
 from app.api.v1.comms import router as comms_router
 from app.api.v1.reports import router as reports_router
 from app.core.config import settings
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 import json
+
+# ── Rate Limiter (slowapi) ────────────────────────────────────────────────────
+# Uses client IP address as the key. This does NOT affect AWS Cognito or any
+# AWS service — it only limits how quickly the local FastAPI endpoint can be hit.
+limiter = Limiter(key_func=get_remote_address, default_limits=["200/minute"])
 
 app = FastAPI(
     title="AutiGuard API Portal",
@@ -18,7 +28,12 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS setup
+# Attach the limiter to the app state so routers can use @limiter.limit()
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+# CORS setup — origins controlled by ALLOWED_ORIGINS in .env
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.ALLOWED_ORIGINS,

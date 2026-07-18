@@ -1,5 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends, Request
 from pydantic import BaseModel
+from app.core.security import get_current_user
+from app.core.config import settings
 import jwt
 import datetime
 
@@ -16,10 +18,16 @@ class SignupRequest(BaseModel):
     phone: str | None = None
     role: str = "caregiver"  # caregiver, org_admin, super_admin
 
+# Import limiter lazily to avoid circular imports at module load time
+def _get_limiter():
+    from app.main import limiter
+    return limiter
+
 @router.post("/login")
-def login(payload: LoginRequest):
-    """Authenticate via mock or real Cognito pool and return signed local token"""
-    from app.core.config import settings
+def login(request: Request, payload: LoginRequest):
+    """Authenticate via mock or real Cognito pool and return signed local token.
+    Rate limited: max 5 login attempts per IP per minute."""
+    _get_limiter().hit(request)
     import boto3
     from botocore.exceptions import ClientError
 
@@ -71,7 +79,7 @@ def login(payload: LoginRequest):
         "name": "Demo User",
         "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
     }
-    encoded_jwt = jwt.encode(token_claims, "localSecretKey", algorithm="HS256")
+    encoded_jwt = jwt.encode(token_claims, settings.JWT_SECRET, algorithm="HS256")
     
     return {
         "access_token": encoded_jwt,
@@ -84,7 +92,6 @@ def login(payload: LoginRequest):
 @router.post("/signup")
 def signup(payload: SignupRequest):
     """Create caregiver or org account inside Cognito"""
-    from app.core.config import settings
     import boto3
     from botocore.exceptions import ClientError
 

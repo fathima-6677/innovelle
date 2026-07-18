@@ -68,7 +68,7 @@ class RoleChecker:
         if settings.MOCK_AWS and settings.ENVIRONMENT.lower() != "production":
             try:
                 # First try verifying with local secret key
-                decoded = jwt.decode(token, "localSecretKey", algorithms=["HS256"])
+                decoded = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
             except jwt.ExpiredSignatureError as e:
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -163,7 +163,7 @@ def get_optional_user(request: Request) -> dict | None:
     # Local bypass for mock mode - only enabled in non-production
     if settings.MOCK_AWS and settings.ENVIRONMENT.lower() != "production":
         try:
-            decoded = jwt.decode(token, "localSecretKey", algorithms=["HS256"])
+            decoded = jwt.decode(token, settings.JWT_SECRET, algorithms=["HS256"])
         except jwt.ExpiredSignatureError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,

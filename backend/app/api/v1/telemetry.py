@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Header
 from app.core.security import get_current_user
 from app.core.dynamodb import db
 from app.schemas.telemetry import TelemetryBatch, TelemetryItem
@@ -145,8 +145,17 @@ async def process_ingested_readings(wearer_id: str, readings: list[TelemetryItem
                     )
 
 @router.post("", status_code=status.HTTP_202_ACCEPTED)
-def ingest_telemetry(payload: TelemetryBatch, background_tasks: BackgroundTasks):
-    """Batch ingest sensor readings. Executes safety analytics rules asynchronously."""
+def ingest_telemetry(payload: TelemetryBatch, background_tasks: BackgroundTasks,
+                     x_device_api_key: str | None = Header(None, alias="X-Device-Api-Key")):
+    """Batch ingest sensor readings from IoT device.
+    Requires X-Device-Api-Key header matching the configured DEVICE_API_KEY.
+    Executes safety analytics rules asynchronously."""
+    from app.core.config import settings as app_settings
+    if x_device_api_key != app_settings.DEVICE_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or missing device API key. Include X-Device-Api-Key header."
+        )
     background_tasks.add_task(process_ingested_readings, payload.wearer_id, payload.readings)
     return {"status": "accepted", "message": f"Processing {len(payload.readings)} telemetry points"}
 

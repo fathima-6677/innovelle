@@ -19,6 +19,11 @@ class Settings(BaseSettings):
     # Flags for testing/mocking
     MOCK_AWS: bool = True
     LOCAL_ENCRYPTION_KEY: str = "XsXwWhAuOK8-KAgQ598H5VlUGVwiuCP2WKpFsEZTOpk="
+    # Secret for signing local/mock JWT tokens (used when MOCK_AWS=True)
+    # In production this is NOT used — Cognito issues RS256 tokens via its own keys
+    JWT_SECRET: str = "autiguard-local-dev-secret-change-in-production"
+    # API key expected from IoT device when pushing telemetry (header: X-Device-Api-Key)
+    DEVICE_API_KEY: str = "autiguard-device-key-change-in-production"
     ALLOWED_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     
     # Twilio (fully dispatched or mocked)
