@@ -11,14 +11,17 @@ interface AuthState {
   token: string | null;
   user: User | null;
   isAuthenticated: boolean;
+  sidebarOpen: boolean;
   login: (token: string, user: User) => void;
   logout: () => void;
+  setSidebarOpen: (open: boolean) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   token: localStorage.getItem('autiguard_token') || null,
   user: JSON.parse(localStorage.getItem('autiguard_user') || 'null'),
   isAuthenticated: !!localStorage.getItem('autiguard_token'),
+  sidebarOpen: false,
   login: (token, user) => {
     localStorage.setItem('autiguard_token', token);
     localStorage.setItem('autiguard_user', JSON.stringify(user));
@@ -29,4 +32,5 @@ export const useAuthStore = create<AuthState>((set) => ({
     localStorage.removeItem('autiguard_user');
     set({ token: null, user: null, isAuthenticated: false });
   },
+  setSidebarOpen: (open) => set({ sidebarOpen: open }),
 }));

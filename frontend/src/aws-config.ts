@@ -9,6 +9,6 @@ Amplify.configure({
       loginWith: {
         email: true,
       },
-    },
+    } as any,
   },
 });
