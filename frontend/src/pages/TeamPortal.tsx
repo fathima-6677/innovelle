@@ -37,7 +37,6 @@ export const TeamPortal: React.FC = () => {
   const [inviteRole, setInviteRole] = useState<'caregiver' | 'org_admin'>('caregiver');
   const [inviteName, setInviteName] = useState('');
   const [message, setMessage] = useState('');
-  const [error, setError] = useState('');
   const [inviting, setInviting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -50,7 +49,6 @@ export const TeamPortal: React.FC = () => {
     e.preventDefault();
     if (!inviteEmail || !inviteName) return;
     setInviting(true);
-    setError('');
     setMessage('');
 
     try {
@@ -78,7 +76,7 @@ export const TeamPortal: React.FC = () => {
       setInviteEmail('');
       setInviteName('');
       setMessage(`Invitation sent to ${inviteEmail}. They will receive a verification email to set their password.`);
-    } catch (err: any) {
+    } catch (_err: any) {
       // Offline fallback — still persist locally
       const newMember: TeamMember = {
         userId: `user-${Date.now()}`,
@@ -99,7 +97,6 @@ export const TeamPortal: React.FC = () => {
 
   const handleDelete = async (userId: string, memberEmail: string) => {
     setDeletingId(userId);
-    setError('');
 
     try {
       // Try to remove from backend

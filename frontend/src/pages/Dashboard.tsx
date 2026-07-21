@@ -68,7 +68,6 @@ export const Dashboard: React.FC = () => {
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectDelayRef = useRef<number>(1000);   // starts at 1s, doubles on each failure
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const prevAlertCountRef = useRef<number>(0);       // tracks alert count to detect new arrivals
 
   // Fetch Wearers List
   const fetchWearers = useCallback(async () => {

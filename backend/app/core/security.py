@@ -83,7 +83,7 @@ class RoleChecker:
                         detail=f"Invalid or malformed token: {str(e)}"
                     )
             
-            user_role = decoded.get("custom:role", "caregiver")
+            user_role = decoded.get("role") or decoded.get("custom:role", "caregiver")
             if user_role not in self.allowed_roles:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
@@ -178,7 +178,7 @@ def get_optional_user(request: Request) -> dict | None:
                     detail=f"Invalid or malformed token: {str(e)}"
                 )
         if "custom:role" not in decoded:
-            decoded["custom:role"] = "caregiver"
+            decoded["custom:role"] = decoded.get("role", "caregiver")
         return decoded
         
     # Real Cognito Verification

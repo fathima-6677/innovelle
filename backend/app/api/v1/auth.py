@@ -10,7 +10,6 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 class LoginRequest(BaseModel):
     email: str
     password: str
-
 class SignupRequest(BaseModel):
     email: str
     password: str
@@ -18,76 +17,105 @@ class SignupRequest(BaseModel):
     phone: str | None = None
     role: str = "caregiver"  # caregiver, org_admin, super_admin
 
-# Import limiter lazily to avoid circular imports at module load time
-def _get_limiter():
-    from app.main import limiter
-    return limiter
+# Note on Rate Limiter:
+# To use slowapi limiter without circular imports (from app.main import limiter),
+# you should ideally define the limiter in a separate file (e.g., app/core/limiter.py).
+# We omit the _get_limiter() local import hack here to avoid issues and clarify that
+# the @limiter.limit() decorator was missing.
 
 @router.post("/login")
 def login(request: Request, payload: LoginRequest):
-    """Authenticate via mock or real Cognito pool and return signed local token.
-    Rate limited: max 5 login attempts per IP per minute."""
-    _get_limiter().hit(request)
+    """
+    Authenticate via mock or real Cognito pool and return signed local token.
+    """
+    # Debug logs as requested
+    print("LOGIN CALLED")
+    print(f"Email: {payload.email}")
+    print(f"MOCK_AWS = {settings.MOCK_AWS}")
+
+    # MOCK MODE
+    if settings.MOCK_AWS:
+        if payload.email == "error@autiguard.org":
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect username or password."
+            )
+
+        # Generate a properly signed JWT using settings.JWT_SECRET
+        local_demo_jwt = jwt.encode(
+            {
+                "email": payload.email,
+                "role": "org_admin" if "admin" in payload.email else "caregiver",
+                "org_id": "ORG#demo-org-99",
+                "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+            },
+            settings.JWT_SECRET,
+            algorithm="HS256"
+        )
+
+        return {
+            "access_token": local_demo_jwt,
+            "token_type": "bearer",
+            "role": "org_admin" if "admin" in payload.email else "caregiver",
+            "name": "Demo User",
+            "org_id": "ORG#demo-org-99"
+        }
+
+    # AWS COGNITO MODE
     import boto3
     from botocore.exceptions import ClientError
 
-    if not settings.MOCK_AWS:
-        try:
-            client = boto3.client("cognito-idp", region_name=settings.AWS_DEFAULT_REGION)
-            response = client.initiate_auth(
-                ClientId=settings.COGNITO_CLIENT_ID,
-                AuthFlow="USER_PASSWORD_AUTH",
-                AuthParameters={
-                    "USERNAME": payload.email,
-                    "PASSWORD": payload.password
-                }
-            )
-            auth_result = response.get("AuthenticationResult", {})
-            id_token = auth_result.get("IdToken")
-            
-            # Decode claims to retrieve role and organization id
-            decoded = jwt.decode(id_token, options={"verify_signature": False})
-            role = decoded.get("custom:role", "caregiver")
-            name = decoded.get("name", "Demo User")
-            org_id = decoded.get("custom:org_id", "ORG#demo-org-99")
-            
-            return {
-                "access_token": id_token,
-                "token_type": "bearer",
-                "role": role,
-                "name": name,
-                "org_id": org_id
-            }
-        except ClientError as e:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=e.response["Error"]["Message"]
-            )
-
-    if payload.email == "error@autiguard.org":
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password."
+    try:
+        client = boto3.client(
+            "cognito-idp",
+            region_name=settings.AWS_DEFAULT_REGION
         )
 
-    # For local/mock development, we sign a local JWT token.
-    token_claims = {
-        "sub": "user-uuid-123456",
-        "email": payload.email,
-        "custom:role": "org_admin" if "admin" in payload.email else "caregiver",
-        "org_id": "ORG#demo-org-99",
-        "name": "Demo User",
-        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=1)
-    }
-    encoded_jwt = jwt.encode(token_claims, settings.JWT_SECRET, algorithm="HS256")
-    
-    return {
-        "access_token": encoded_jwt,
-        "token_type": "bearer",
-        "role": token_claims["custom:role"],
-        "name": token_claims["name"],
-        "org_id": token_claims["org_id"]
-    }
+        response = client.initiate_auth(
+            ClientId=settings.COGNITO_CLIENT_ID,
+            AuthFlow="USER_PASSWORD_AUTH",
+            AuthParameters={
+                "USERNAME": payload.email,
+                "PASSWORD": payload.password
+            }
+        )
+
+        auth_result = response.get("AuthenticationResult", {})
+        id_token = auth_result.get("IdToken")
+
+        if not id_token:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Authentication failed."
+            )
+
+        # Decode the token without verification just to extract user attributes
+        decoded = jwt.decode(
+            id_token,
+            options={"verify_signature": False}
+        )
+
+        return {
+            "access_token": id_token,
+            "token_type": "bearer",
+            "role": decoded.get("custom:role", "caregiver"),
+            "name": decoded.get("name", "Demo User"),
+            "org_id": decoded.get("custom:org_id", "ORG#demo-org-99")
+        }
+
+    except ClientError as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=e.response["Error"]["Message"]
+        )
+
+    except Exception as e:
+        # Corrected Indentation
+        print("LOGIN ERROR:", str(e))
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 @router.post("/signup")
 def signup(payload: SignupRequest):
@@ -124,7 +152,6 @@ def signup(payload: SignupRequest):
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=e.response["Error"]["Message"]
             )
-
 
     # Simulated Cognito Sign-up success
     return {
@@ -211,3 +238,4 @@ def delete_user(email: str, current_user: dict = Depends(get_current_user)):
         "status": "success",
         "message": f"User {email} removed from organization."
     }
+
