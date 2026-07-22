@@ -9,26 +9,6 @@ import { API_BASE_URL } from '../config';
 import { telemetryService, TelemetryPoint } from '../services/telemetryService';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-// ─── Alert Chime (Web Audio API) ─────────────────────────────────────────────
-function playAlertChime() {
-  try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.4);
-    gain.gain.setValueAtTime(0.6, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.6);
-    osc.start(ctx.currentTime);
-    osc.stop(ctx.currentTime + 0.6);
-  } catch {
-    // Audio not available — fail silently
-  }
-}
-
 export const Dashboard: React.FC = () => {
   const { user, token } = useAuthStore();
   // Set default to autiguard001 as per requirement

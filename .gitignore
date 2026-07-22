@@ -105,3 +105,6 @@ cdk.out/
 
 # CDK context cache (optional)
 cdk.context.json
+
+# Lambda package dependencies
+aws/lambda/package/
