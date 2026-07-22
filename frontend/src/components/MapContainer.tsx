@@ -42,6 +42,9 @@ interface MapContainerProps {
   longitude: number;
   geofences?: GeofenceData[];
   wearerName?: string;
+  deviceId?: string;
+  heartRate?: number | null;
+  stressScore?: number | null;
 }
 
 // Component to dynamically update map center when coordinates change
@@ -57,7 +60,10 @@ export const CustomMapContainer: React.FC<MapContainerProps> = ({
   latitude,
   longitude,
   geofences = [],
-  wearerName = "Wearer"
+  wearerName = "Wearer",
+  deviceId = "Unknown",
+  heartRate = null,
+  stressScore = null
 }) => {
   const position: [number, number] = [latitude, longitude];
 
@@ -119,9 +125,11 @@ export const CustomMapContainer: React.FC<MapContainerProps> = ({
         <Marker position={position} icon={wearerIcon}>
           <Popup>
             <div className="text-xs text-aws-dark">
-              <strong>{wearerName}</strong>
+              <strong>{wearerName} ({deviceId})</strong>
               <br />
-              Current coordinates
+              Heart Rate: {heartRate !== null ? `${heartRate} BPM` : 'N/A'}<br />
+              Stress Score: {stressScore !== null ? `${stressScore}` : 'N/A'}<br />
+              Coordinates: {latitude.toFixed(4)}, {longitude.toFixed(4)}
             </div>
           </Popup>
         </Marker>

@@ -4,8 +4,10 @@ import { VitalsStrip } from '../components/VitalsStrip';
 import { AlertFeed, AlertItemData } from '../components/AlertFeed';
 import { CustomMapContainer } from '../components/MapContainer';
 import { useAuthStore } from '../store/authStore';
-import { Activity, ShieldAlert, User, WifiOff, Wifi } from 'lucide-react';
-import { API_BASE_URL, WS_BASE_URL } from '../config';
+import { Activity, ShieldAlert, User, WifiOff, Wifi, RefreshCw } from 'lucide-react';
+import { API_BASE_URL } from '../config';
+import { telemetryService, TelemetryPoint } from '../services/telemetryService';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
 // ─── Alert Chime (Web Audio API) ─────────────────────────────────────────────
 function playAlertChime() {
@@ -27,73 +29,27 @@ function playAlertChime() {
   }
 }
 
-// ─── Browser Push Notification ────────────────────────────────────────────────
-function sendBrowserNotification(title: string, body: string) {
-  if (!('Notification' in window)) return;
-  if (Notification.permission === 'granted') {
-    new Notification(title, { body, icon: '/vite.svg' });
-  } else if (Notification.permission !== 'denied') {
-    Notification.requestPermission().then(perm => {
-      if (perm === 'granted') new Notification(title, { body, icon: '/vite.svg' });
-    });
-  }
-}
-
-interface TelemetryPoint {
-  timestamp: string;
-  heart_rate: number;
-  stress_index: number;
-  risk_level: string;
-  battery_level: number;
-  connectivity_status: string;
-  latitude: number;
-  longitude: number;
-}
-
 export const Dashboard: React.FC = () => {
   const { user, token } = useAuthStore();
-  const [selectedWearerId, setSelectedWearerId] = useState<string>('');
-  const [wearersList, setWearersList] = useState<any[]>([]);
+  // Set default to autiguard001 as per requirement
+  const [selectedWearerId, setSelectedWearerId] = useState<string>('autiguard001');
+  const [wearersList, setWearersList] = useState<any[]>([{ wearer_id: 'autiguard001', first_name: 'AutiGuard', last_name: 'Demo' }]);
 
   // Telemetry state
   const [currentTelemetry, setCurrentTelemetry] = useState<TelemetryPoint | null>(null);
   const [telemetryHistory, setTelemetryHistory] = useState<TelemetryPoint[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
 
   // Alerts state
   const [alerts, setAlerts] = useState<AlertItemData[]>([]);
   const [loading, setLoading] = useState(false);
 
-  // WebSocket connection state
-  const [wsStatus, setWsStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
-  const socketRef = useRef<WebSocket | null>(null);
-  const reconnectDelayRef = useRef<number>(1000);   // starts at 1s, doubles on each failure
-  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Fetch Wearers List
-  const fetchWearers = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE_URL}/api/v1/wearers`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setWearersList(data);
-        if (data.length > 0 && !selectedWearerId) {
-          setSelectedWearerId(data[0].wearer_id);
-        }
-      }
-    } catch {
-      // Offline fallback: load mock wearer
-      const mockWearers = [
-        { wearer_id: 'wearer-99', first_name: 'Aarav', last_name: 'Sharma', dob: '2016-04-12' }
-      ];
-      setWearersList(mockWearers);
-      setSelectedWearerId(mockWearers[0].wearer_id);
-    } finally {
-      setLoading(false);
-    }
-  }, [token, selectedWearerId]);
+  // Use refs for polling to avoid dependency cycle in useEffect
+  const wearerIdRef = useRef(selectedWearerId);
+  useEffect(() => {
+    wearerIdRef.current = selectedWearerId;
+  }, [selectedWearerId]);
 
   // Fetch Alerts List
   const fetchAlerts = useCallback(async () => {
@@ -107,171 +63,89 @@ export const Dashboard: React.FC = () => {
         setAlerts(data.filter((a: any) => a.ack_status === 'unacknowledged'));
       }
     } catch {
-      // Offline fallback
+      // Ignore
     } finally {
       setLoading(false);
     }
   }, [token]);
 
-  // Acknowledge Alert
-  const handleAcknowledge = async (wearerId: string, alertId: string) => {
-    // Optimistic UI update
-    setAlerts(prev => prev.filter(a => a.alert_id !== alertId));
-    
-    try {
-      await fetch(`${API_BASE_URL}/api/v1/alerts/${wearerId}/acknowledge/${alertId}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      fetchAlerts();
-    } catch {
-      console.log("Could not update status on server, offline fallback succeeded optimistically.");
-    }
-  };
-
-  // Setup WebSocket / Simulation Fallback
+  // Initial Fetch History
   useEffect(() => {
-    fetchWearers();
-    fetchAlerts();
-  }, [fetchWearers, fetchAlerts]);
-
-  useEffect(() => {
-    if (!selectedWearerId) return;
-
-    let isDestroyed = false;
-
-    // ── WebSocket with exponential backoff reconnect ──────────────────────────
-    const orgId = user?.orgId || 'demo-org-99';
-    const wsUrl = `${WS_BASE_URL}/api/v1/ws/${encodeURIComponent(orgId)}`;
-
-    const connect = () => {
-      if (isDestroyed) return;
-      setWsStatus('connecting');
-      const ws = new WebSocket(wsUrl);
-      socketRef.current = ws;
-
-      ws.onopen = () => {
-        if (isDestroyed) { ws.close(); return; }
-        console.log('✅ WebSocket connected to API portal');
-        setWsStatus('connected');
-        reconnectDelayRef.current = 1000; // reset backoff on successful connect
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          if (msg.wearer_id === selectedWearerId) {
-            if (msg.type === 'telemetry') {
-              const point: TelemetryPoint = {
-                timestamp: msg.timestamp,
-                heart_rate: msg.heart_rate,
-                stress_index: msg.stress_index,
-                risk_level: msg.risk_level,
-                battery_level: msg.battery_level,
-                connectivity_status: 'CONNECTED',
-                latitude: msg.latitude,
-                longitude: msg.longitude,
-              };
-              setCurrentTelemetry(point);
-              setTelemetryHistory(prev => [...prev.slice(-20), point]);
-            } else if (msg.type === 'alert') {
-              // ── Play chime + browser notification on new alert ──────────────
-              playAlertChime();
-              sendBrowserNotification(
-                '🚨 AutiGuard Alert',
-                `New safety alert received for wearer ${selectedWearerId}`
-              );
-              fetchAlerts();
-            }
-          }
-        } catch (err) {
-          console.error(err);
+    const fetchInitialHistory = async () => {
+      try {
+        const hist = await telemetryService.getTelemetryHistory(selectedWearerId);
+        // Reverse so chronological order for charts
+        setTelemetryHistory(hist.reverse());
+        if (hist.length > 0) {
+          setCurrentTelemetry(hist[hist.length - 1]);
         }
-      };
+      } catch (err) {
+        console.error("Failed to fetch initial history", err);
+      }
+    };
+    fetchInitialHistory();
+  }, [selectedWearerId]);
 
-      ws.onerror = () => {
-        console.warn('⚠️ WebSocket error encountered.');
-      };
+  // Polling Loop for Live Data
+  useEffect(() => {
+    let intervalId: ReturnType<typeof setInterval>;
 
-      ws.onclose = () => {
-        if (isDestroyed) return;
-        setWsStatus('disconnected');
-        // Exponential backoff: 1s → 2s → 4s → … max 30s
-        const delay = Math.min(reconnectDelayRef.current, 30000);
-        console.warn(`🔄 WebSocket closed. Reconnecting in ${delay / 1000}s...`);
-        reconnectTimerRef.current = setTimeout(() => {
-          reconnectDelayRef.current = delay * 2;
-          connect();
-        }, delay);
-      };
+    const pollData = async () => {
+      setIsRefreshing(true);
+      try {
+        const data = await telemetryService.getLatestTelemetry(wearerIdRef.current);
+        if (data) {
+          setCurrentTelemetry(data);
+          setTelemetryHistory(prev => {
+            // Append and keep last 100 points
+            const newHistory = [...prev, data];
+            // Sort by timestamp just in case
+            newHistory.sort((a, b) => {
+              const ta = typeof a.timestamp === 'number' ? a.timestamp : new Date(a.timestamp).getTime();
+              const tb = typeof b.timestamp === 'number' ? b.timestamp : new Date(b.timestamp).getTime();
+              return ta - tb;
+            });
+            // Simple deduplication based on timestamp
+            const unique = new Map(newHistory.map(item => [item.timestamp, item]));
+            return Array.from(unique.values()).slice(-100);
+          });
+          setConnectionStatus('connected');
+        }
+      } catch (err) {
+        console.error("Polling error:", err);
+        setConnectionStatus('disconnected');
+      } finally {
+        setIsRefreshing(false);
+      }
     };
 
-    connect();
+    // Poll immediately, then every 5 seconds
+    pollData();
+    intervalId = setInterval(pollData, 5000);
 
-    // Telemetry Simulation loop fallback (always runs to ensure premium UX)
-    // In production, when WebSocket updates arrive, it updates state. For simulation,
-    // we simulate realistic coordinate drifts, heart rate changes, and stress indices.
-    let simulatedLat = 11.9416;
-    let simulatedLng = 79.8083;
-    // Simulate a realistic battery starting between 75-100%, slowly draining
-    let simulatedBattery = Math.floor(75 + Math.random() * 25);
-    
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          simulatedLat = pos.coords.latitude;
-          simulatedLng = pos.coords.longitude;
-        },
-        (error) => console.error("Dashboard geolocation error:", error),
-        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-      );
-    }
-    
-    const interval = setInterval(() => {
-      // Simulate slight drift
-      simulatedLat += (Math.random() - 0.5) * 0.0001;
-      simulatedLng += (Math.random() - 0.5) * 0.0001;
-      
-      // Drain battery by ~0.1% per tick (every 2s), with slight fluctuation
-      simulatedBattery = Math.max(0, simulatedBattery - 0.1 + (Math.random() - 0.5) * 0.05);
+    return () => clearInterval(intervalId); // Cleanup on unmount
+  }, []);
 
-      const hr = Math.floor(70 + Math.random() * 25);
-      const stress = Math.floor(20 + Math.random() * 50);
-      const risk = stress > 65 ? 'ELEVATED' : 'NORMAL';
-
-      const point: TelemetryPoint = {
-        timestamp: new Date().toISOString(),
-        heart_rate: hr,
-        stress_index: stress,
-        risk_level: risk,
-        battery_level: Math.round(simulatedBattery),
-        connectivity_status: 'CONNECTED',
-        latitude: simulatedLat,
-        longitude: simulatedLng,
-      };
-
-      setCurrentTelemetry(point);
-      setTelemetryHistory(prev => {
-        const newHistory = [...prev, point];
-        return newHistory.slice(-20); // Keep last 20
-      });
-    }, 2000);
-
-    return () => {
-      isDestroyed = true;
-      clearInterval(interval);
-      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
-      if (socketRef.current) socketRef.current.close();
-    };
-  }, [selectedWearerId, user, fetchAlerts]);
-
+  const handleAcknowledge = async (wearerId: string, alertId: string) => {
+    setAlerts(prev => prev.filter(a => a.alert_id !== alertId));
+  };
 
   const activeWearer = wearersList.find(w => w.wearer_id === selectedWearerId);
   const activeAlertsCount = alerts.length;
 
+  // Chart data formatting
+  const chartData = telemetryHistory.map(t => {
+    const time = typeof t.timestamp === 'number' && t.timestamp < 10000000000 ? t.timestamp * 1000 : t.timestamp;
+    return {
+      time: new Date(time).toLocaleTimeString(),
+      heartRate: t.heart_rate,
+      stressScore: t.stress_score,
+    }
+  });
+
   return (
     <div className="flex-1 flex flex-col h-screen overflow-hidden">
-      <Navbar onRefresh={() => { fetchWearers(); fetchAlerts(); }} isRefreshing={loading} />
+      <Navbar onRefresh={() => fetchAlerts()} isRefreshing={isRefreshing || loading} />
 
       <main className="flex-1 overflow-y-auto p-6 bg-aws-dark">
         {/* Top Header Section */}
@@ -282,16 +156,16 @@ export const Dashboard: React.FC = () => {
               COMMAND CENTER LIVE DASHBOARD
             </h1>
             <p className="text-xs text-aws-gray/70 mt-1 uppercase font-mono">Real-time physiological &amp; safety console</p>
-            {/* WebSocket connection status badge */}
+            {/* API connection status badge */}
             <div className="flex items-center gap-1.5 mt-1">
-              {wsStatus === 'connected' && (
-                <span className="flex items-center gap-1 text-[10px] font-mono text-green-500"><Wifi size={10} /> WS CONNECTED</span>
+              {connectionStatus === 'connected' && (
+                <span className="flex items-center gap-1 text-[10px] font-mono text-green-500"><Wifi size={10} /> API CONNECTED</span>
               )}
-              {wsStatus === 'connecting' && (
-                <span className="flex items-center gap-1 text-[10px] font-mono text-aws-orange animate-pulse"><Wifi size={10} /> WS CONNECTING...</span>
+              {connectionStatus === 'connecting' && (
+                <span className="flex items-center gap-1 text-[10px] font-mono text-aws-orange animate-pulse"><RefreshCw size={10} className="animate-spin" /> FETCHING DATA...</span>
               )}
-              {wsStatus === 'disconnected' && (
-                <span className="flex items-center gap-1 text-[10px] font-mono text-red-500"><WifiOff size={10} /> WS DISCONNECTED — RETRYING</span>
+              {connectionStatus === 'disconnected' && (
+                <span className="flex items-center gap-1 text-[10px] font-mono text-red-500"><WifiOff size={10} /> API OFFLINE — RETRYING</span>
               )}
             </div>
           </div>
@@ -306,70 +180,65 @@ export const Dashboard: React.FC = () => {
             >
               {wearersList.map(w => (
                 <option key={w.wearer_id} value={w.wearer_id}>
-                  {w.first_name} {w.last_name}
+                  {w.first_name} {w.last_name} ({w.wearer_id})
                 </option>
               ))}
             </select>
           </div>
         </div>
 
-        {/* Quick Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div className="glass-panel p-4 rounded flex items-center gap-4">
-            <div className={`p-2 rounded ${activeAlertsCount > 0 ? 'bg-red-600/10 border border-red-500/20 text-red-500' : 'bg-green-600/10 border border-green-500/20 text-green-500'}`}>
-              <ShieldAlert size={20} />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-aws-gray/60 uppercase font-mono">System Warnings</span>
-              <span className="text-sm font-bold text-aws-gray">
-                {activeAlertsCount > 0 ? `${activeAlertsCount} Unresolved Warnings` : 'All Systems Verified Safe'}
-              </span>
-            </div>
-          </div>
-
-          <div className="glass-panel p-4 rounded flex items-center gap-4">
-            <div className="p-2 rounded bg-aws-teal/10 border border-aws-teal/20 text-aws-teal">
-              <Activity size={20} />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-aws-gray/60 uppercase font-mono">Stress Assessment</span>
-              <span className="text-sm font-bold text-aws-gray">
-                Stress Level: {currentTelemetry?.stress_index ?? 'Calculating...'}% ({currentTelemetry?.risk_level ?? 'NORMAL'})
-              </span>
-            </div>
-          </div>
-
-          <div className="glass-panel p-4 rounded flex items-center gap-4">
-            <div className="p-2 rounded bg-aws-orange/10 border border-aws-orange/20 text-aws-orange">
-              <User size={20} />
-            </div>
-            <div className="flex flex-col">
-              <span className="text-[10px] text-aws-gray/60 uppercase font-mono">Active Target Details</span>
-              <span className="text-sm font-bold text-aws-gray font-mono">
-                {activeWearer ? `${activeWearer.first_name} ${activeWearer.last_name} (${activeWearer.wearer_id.slice(0,8)})` : 'None Selected'}
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* Live Vitals strip */}
-        <VitalsStrip currentData={currentTelemetry} historyData={telemetryHistory} />
+        {!currentTelemetry ? (
+          <div className="w-full h-24 mb-6 flex items-center justify-center border border-aws-slate rounded text-aws-gray/50 animate-pulse bg-aws-navy">
+            Loading telemetry data...
+          </div>
+        ) : (
+          <VitalsStrip currentData={currentTelemetry} />
+        )}
 
-        {/* Main Grid: Map & Alerts */}
+        {/* Main Grid: Map, Charts & Alerts */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Tactical Position Map */}
-          <div className="lg:col-span-8 h-[400px]">
-            {currentTelemetry ? (
-              <CustomMapContainer
-                latitude={currentTelemetry.latitude}
-                longitude={currentTelemetry.longitude}
-                wearerName={activeWearer?.first_name}
-              />
-            ) : (
-              <div className="w-full h-full glass-panel flex items-center justify-center text-aws-gray/30 border border-aws-slate rounded">
-                Connecting To Device Stream GPS...
-              </div>
-            )}
+          <div className="lg:col-span-8 flex flex-col gap-6">
+            <div className="h-[400px]">
+              {currentTelemetry?.latitude && currentTelemetry?.longitude ? (
+                <CustomMapContainer
+                  latitude={currentTelemetry.latitude}
+                  longitude={currentTelemetry.longitude}
+                  wearerName={activeWearer?.first_name}
+                  deviceId={selectedWearerId}
+                  heartRate={currentTelemetry.heart_rate}
+                  stressScore={currentTelemetry.stress_score}
+                />
+              ) : (
+                <div className="w-full h-full glass-panel flex items-center justify-center text-aws-gray/30 border border-aws-slate rounded">
+                  Connecting To Device Stream GPS...
+                </div>
+              )}
+            </div>
+
+            {/* Historical Charts */}
+            <div className="glass-panel p-4 rounded h-[300px]">
+              <h2 className="text-sm font-bold text-aws-gray uppercase mb-4 flex items-center gap-2">
+                <Activity size={16} className="text-aws-teal" /> Historical Telemetry Trends
+              </h2>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={chartData} margin={{ top: 5, right: 30, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#2B3648" />
+                    <XAxis dataKey="time" stroke="#7A899F" tick={{ fontSize: 10 }} />
+                    <YAxis yAxisId="left" stroke="#EC7211" tick={{ fontSize: 10 }} />
+                    <YAxis yAxisId="right" orientation="right" stroke="#00A1C9" tick={{ fontSize: 10 }} />
+                    <Tooltip contentStyle={{ backgroundColor: '#131A22', borderColor: '#2B3648', color: '#F2F3F3' }} />
+                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                    <Line yAxisId="left" type="monotone" name="Heart Rate (BPM)" dataKey="heartRate" stroke="#EC7211" strokeWidth={2} dot={false} isAnimationActive={false} />
+                    <Line yAxisId="right" type="monotone" name="Stress Score" dataKey="stressScore" stroke="#00A1C9" strokeWidth={2} dot={false} isAnimationActive={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-aws-gray/40 text-xs">Awaiting historical data...</div>
+              )}
+            </div>
           </div>
 
           {/* Active alerts feed */}

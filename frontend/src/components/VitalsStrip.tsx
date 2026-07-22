@@ -1,27 +1,16 @@
 import React from 'react';
-import { Heart, Activity, Battery, Wifi } from 'lucide-react';
-import { LineChart, Line, ResponsiveContainer, YAxis } from 'recharts';
-
-interface TelemetryData {
-  timestamp: string;
-  heart_rate: number;
-  stress_index: number;
-  risk_level: string;
-  battery_level: number;
-  connectivity_status: string;
-}
+import { Heart, Activity, AlertTriangle, Speaker, MapPin, Clock } from 'lucide-react';
+import { TelemetryPoint } from '../services/telemetryService';
 
 interface VitalsStripProps {
-  currentData: TelemetryData | null;
-  historyData: TelemetryData[];
+  currentData: TelemetryPoint | null;
 }
 
-export const VitalsStrip: React.FC<VitalsStripProps> = ({ currentData, historyData }) => {
-  const heartRateHistory = historyData.map(h => ({ hr: h.heart_rate }));
-  
-  // Risk styling values
-  const isSevere = currentData?.risk_level === 'SEVERE';
-  const isElevated = currentData?.risk_level === 'ELEVATED';
+export const VitalsStrip: React.FC<VitalsStripProps> = ({ currentData }) => {
+  // Risk styling for Stress Score
+  const stress = currentData?.stress_score ?? 0;
+  const isSevere = stress > 80;
+  const isElevated = stress > 65;
 
   let riskColor = 'text-aws-teal';
   let riskBg = 'bg-aws-teal/10';
@@ -37,93 +26,87 @@ export const VitalsStrip: React.FC<VitalsStripProps> = ({ currentData, historyDa
     riskBorder = 'border-aws-orange/30';
   }
 
+  const formatTime = (ts: string | number | undefined) => {
+    if (!ts) return 'N/A';
+    // If it's epoch seconds from DynamoDB, multiply by 1000
+    const time = typeof ts === 'number' && ts < 10000000000 ? ts * 1000 : ts;
+    return new Date(time).toLocaleTimeString();
+  };
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+    <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 mb-6">
       {/* Heart Rate Widget */}
-      <div className="glass-panel p-4 rounded-lg flex flex-col justify-between h-32 relative overflow-hidden">
-        <div className="flex items-center justify-between text-xs text-aws-gray/50 uppercase font-semibold">
-          <span className="flex items-center gap-1.5"><Heart size={14} className="text-red-500 animate-pulse" /> Heart Rate</span>
-          <span className="text-aws-gray font-mono">{currentData?.heart_rate ? `${currentData.heart_rate} BPM` : 'N/A'}</span>
+      <div className="glass-panel p-3 rounded-lg flex flex-col justify-between h-24">
+        <div className="flex items-center gap-1.5 text-[10px] text-aws-gray/50 uppercase font-semibold">
+          <Heart size={12} className="text-red-500 animate-pulse" /> Heart Rate
         </div>
-        
-        {/* Heart Rate Mini Trendline */}
-        <div className="h-12 w-full mt-2">
-          {heartRateHistory.length > 1 ? (
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={heartRateHistory}>
-                <YAxis domain={['dataMin - 5', 'dataMax + 5']} hide />
-                <Line type="monotone" dataKey="hr" stroke="#E63946" strokeWidth={2} dot={false} isAnimationActive={false} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-full text-xs text-aws-gray/50">Awaiting Sensor Logs...</div>
-          )}
+        <div className="text-xl font-bold font-mono text-aws-gray">
+          {currentData?.heart_rate ? `${currentData.heart_rate} BPM` : 'N/A'}
         </div>
       </div>
 
-      {/* Stress Index Gauge Widget */}
-      <div className={`glass-panel p-4 rounded-lg flex flex-col justify-between h-32 relative ${isSevere ? 'critical-glow-pulse' : ''}`}>
-        <div className="flex items-center justify-between text-xs text-aws-gray/50 uppercase font-semibold">
-          <span className="flex items-center gap-1.5"><Activity size={14} className={riskColor} /> Stress Index</span>
-          <span className={`font-bold font-mono ${riskColor}`}>{currentData?.stress_index ?? 0}%</span>
+      {/* SpO2 Widget (Mocked for now since not in DB) */}
+      <div className="glass-panel p-3 rounded-lg flex flex-col justify-between h-24">
+        <div className="flex items-center gap-1.5 text-[10px] text-aws-gray/50 uppercase font-semibold">
+          <Activity size={12} className="text-blue-400" /> SpO₂
         </div>
+        <div className="text-xl font-bold font-mono text-aws-gray">
+          N/A
+        </div>
+      </div>
 
-        <div className="mt-3 flex items-center justify-between gap-4">
-          <div className="flex-1 bg-aws-slate h-3 rounded-full overflow-hidden border border-aws-gray/5">
-            <div 
-              className={`h-full transition-all duration-1000 ${
-                isSevere ? 'bg-red-500' : isElevated ? 'bg-aws-orange' : 'bg-aws-teal'
-              }`}
-              style={{ width: `${currentData?.stress_index ?? 0}%` }}
-            />
+      {/* Stress Score Widget */}
+      <div className={`glass-panel p-3 rounded-lg flex flex-col justify-between h-24 ${isSevere ? 'critical-glow-pulse' : ''}`}>
+        <div className="flex items-center gap-1.5 text-[10px] text-aws-gray/50 uppercase font-semibold">
+          <Activity size={12} className={riskColor} /> Stress Score
+        </div>
+        <div className="flex items-center gap-2">
+          <div className={`text-xl font-bold font-mono ${riskColor}`}>
+            {currentData?.stress_score ?? 0}
           </div>
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded border uppercase font-mono tracking-wide ${riskBg} ${riskBorder} ${riskColor}`}>
-            {currentData?.risk_level ?? 'NORMAL'}
-          </span>
-        </div>
-        <span className="text-[10px] text-aws-gray/30 mt-1">Calculated via AWS SageMaker Real-time Endpoint</span>
-      </div>
-
-      {/* Battery Status Widget */}
-      <div className="glass-panel p-4 rounded-lg flex flex-col justify-between h-32">
-        <div className="flex items-center justify-between text-xs text-aws-gray/50 uppercase font-semibold">
-          <span className="flex items-center gap-1.5">
-            <Battery size={14} className={
-              (currentData?.battery_level ?? 100) < 25 ? 'text-red-500' :
-              (currentData?.battery_level ?? 100) < 50 ? 'text-amber-400' :
-              'text-green-500'
-            } />
-            Battery Level
-          </span>
-          <span className="text-aws-gray font-mono">{currentData?.battery_level ? `${currentData.battery_level}%` : 'N/A'}</span>
-        </div>
-        <div className="flex items-center gap-3 mt-4">
-          <div className="w-12 h-6 border-2 border-aws-slate rounded p-0.5 flex relative">
-            <div 
-              className={`h-full rounded-sm ${
-                (currentData?.battery_level ?? 100) < 25 ? 'bg-red-500' : 'bg-green-500'
-              }`}
-              style={{ width: `${currentData?.battery_level ?? 100}%` }}
-            />
-            <div className="w-1 h-2 bg-aws-slate absolute -right-1.5 top-1.5 rounded-r-sm" />
-          </div>
-          <span className="text-xs text-aws-gray/60 font-mono">
-            {(currentData?.battery_level ?? 100) < 25 ? 'Low Battery Alert' : 'Charging Status Normal'}
+          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase font-mono tracking-wide ${riskBg} ${riskBorder} ${riskColor}`}>
+            {isSevere ? 'HIGH' : isElevated ? 'ELEVATED' : 'NORMAL'}
           </span>
         </div>
       </div>
 
-      {/* Connectivity Status Widget */}
-      <div className="glass-panel p-4 rounded-lg flex flex-col justify-between h-32">
-        <div className="flex items-center justify-between text-xs text-aws-gray/50 uppercase font-semibold">
-          <span className="flex items-center gap-1.5"><Wifi size={14} className="text-aws-teal" /> Network Status</span>
-          <span className="text-aws-gray font-mono uppercase">{currentData?.connectivity_status ?? 'DISCONNECTED'}</span>
+      {/* Fall Status */}
+      <div className={`glass-panel p-3 rounded-lg flex flex-col justify-between h-24 ${currentData?.fall_detected ? 'bg-red-600/10 border-red-500/30' : ''}`}>
+        <div className="flex items-center gap-1.5 text-[10px] text-aws-gray/50 uppercase font-semibold">
+          <AlertTriangle size={12} className={currentData?.fall_detected ? 'text-red-500' : 'text-aws-gray'} /> Fall Status
         </div>
-        <div className="flex items-center gap-2 mt-4">
-          <Wifi size={24} className={currentData?.connectivity_status === 'CONNECTED' ? 'text-green-500 animate-pulse' : 'text-aws-slate'} />
-          <span className="text-xs font-mono text-aws-gray/60">
-            {currentData?.connectivity_status === 'CONNECTED' ? 'Ingesting via AWS IoT Core' : 'Stale Data / Wearer Offline'}
-          </span>
+        <div className={`text-sm font-bold font-mono ${currentData?.fall_detected ? 'text-red-500 animate-pulse' : 'text-green-500'}`}>
+          {currentData?.fall_detected ? 'FALL DETECTED' : 'SAFE'}
+        </div>
+      </div>
+
+      {/* Sound Alert */}
+      <div className={`glass-panel p-3 rounded-lg flex flex-col justify-between h-24 ${currentData?.sound_alert ? 'bg-red-600/10 border-red-500/30' : ''}`}>
+        <div className="flex items-center gap-1.5 text-[10px] text-aws-gray/50 uppercase font-semibold">
+          <Speaker size={12} className={currentData?.sound_alert ? 'text-red-500' : 'text-aws-gray'} /> Sound Alert
+        </div>
+        <div className={`text-sm font-bold font-mono ${currentData?.sound_alert ? 'text-red-500 animate-pulse' : 'text-green-500'}`}>
+          {currentData?.sound_alert ? 'ALERT ACTIVE' : 'NORMAL'}
+        </div>
+      </div>
+
+      {/* Coordinates (Lat/Lng) */}
+      <div className="glass-panel p-3 rounded-lg flex flex-col justify-between h-24 col-span-2">
+        <div className="flex items-center gap-1.5 text-[10px] text-aws-gray/50 uppercase font-semibold">
+          <MapPin size={12} className="text-aws-teal" /> Location
+        </div>
+        <div className="text-sm font-bold font-mono text-aws-gray">
+          {currentData?.latitude ? currentData.latitude.toFixed(6) : 'N/A'}, {currentData?.longitude ? currentData.longitude.toFixed(6) : 'N/A'}
+        </div>
+      </div>
+
+      {/* Last Updated */}
+      <div className="glass-panel p-3 rounded-lg flex flex-col justify-between h-24">
+        <div className="flex items-center gap-1.5 text-[10px] text-aws-gray/50 uppercase font-semibold">
+          <Clock size={12} className="text-aws-gray/70" /> Last Updated
+        </div>
+        <div className="text-xs font-bold font-mono text-aws-gray truncate">
+          {formatTime(currentData?.timestamp)}
         </div>
       </div>
     </div>

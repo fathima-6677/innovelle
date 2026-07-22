@@ -1,3 +1,7 @@
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -10,6 +14,7 @@ from app.api.v1.qr import router as qr_router
 from app.api.v1.ml import router as ml_router
 from app.api.v1.comms import router as comms_router
 from app.api.v1.reports import router as reports_router
+from app.api.v1.sensor import router as sensor_router
 from app.core.config import settings
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -52,6 +57,7 @@ app.include_router(qr_router, prefix="/api/v1") # Includes /qr/resolve at root v
 app.include_router(ml_router, prefix="/api/v1")
 app.include_router(comms_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
+app.include_router(sensor_router, prefix="/api/v1")
 
 # WebSocket Connection Manager for Real-time Dashboard Updates
 class ConnectionManager:
@@ -104,6 +110,15 @@ import datetime
 
 @app.on_event("startup")
 def startup_event():
+    import logging
+    logger = logging.getLogger(__name__)
+    region = os.getenv("AWS_REGION", "ap-south-1")
+    logger.info(f"AutiGuard API starting in AWS Region: {region}")
+
+    # Load ML Model
+    from app.services.ml_service import ml_service
+    ml_service.load_model()
+
     if settings.MOCK_AWS:
         from app.core.dynamodb import db
         profile = db.get_item("WEARER#wearer-99", "PROFILE")

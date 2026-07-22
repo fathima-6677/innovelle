@@ -1,0 +1,157 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AutiGuard: AWS IoT Core, DynamoDB, Lambda, and IAM infrastructure.'
+
+
+Parameters:
+  TwilioAccountSid:
+    Type: String
+    Default: "TEMP_SID"
+
+  TwilioAuthToken:
+    Type: String
+    NoEcho: true
+    Default: "TEMP_TOKEN"
+
+  TwilioFromNumber:
+    Type: String
+    Default: "+10000000000"
+
+  CaregiverPhoneNumber:
+    Type: String
+    Default: "+10000000000"
+
+Resources:
+  # DynamoDB Table
+  AutiGuardSensorDataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: AutiGuardSensorData
+      AttributeDefinitions:
+        - AttributeName: device_id
+          AttributeType: S
+        - AttributeName: timestamp
+          AttributeType: N
+      KeySchema:
+        - AttributeName: device_id
+          KeyType: HASH
+        - AttributeName: timestamp
+          KeyType: RANGE
+      BillingMode: PAY_PER_REQUEST
+      StreamSpecification:
+        StreamViewType: NEW_AND_OLD_IMAGES
+
+  # IAM Role for IoT Rule to Write to DynamoDB
+  IoTRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: iot.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: IoTWriteDynamoDBPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:PutItem
+                Resource: !GetAtt AutiGuardSensorDataTable.Arn
+
+  # AWS IoT Rule
+  IoTSensorRule:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      RuleName: AutiGuardSensorDataRule
+      TopicRulePayload:
+        RuleDisabled: false
+        Sql: "SELECT * FROM 'autiguard/sensors'"
+        Actions:
+          - DynamoDBv2:
+              RoleArn: !GetAtt IoTRole.Arn
+              PutItem:
+                TableName: !Ref AutiGuardSensorDataTable
+          - Lambda:
+              FunctionArn: !Sub "${AlertProcessorLambda.Arn}:$LATEST"
+
+  # IAM Role for Lambda
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaDynamoDBStreamAndLogging
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+              - Effect: Allow
+                Action:
+                  - dynamodb:DescribeStream
+                  - dynamodb:GetRecords
+                  - dynamodb:GetShardIterator
+                  - dynamodb:ListStreams
+                Resource: !GetAtt AutiGuardSensorDataTable.StreamArn
+
+  # Lambda Function
+  AlertProcessorLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: AutiGuardAlertProcessor
+      Handler: alert_processor.lambda_handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Runtime: python3.11
+      Timeout: 30
+      Environment:
+        Variables:
+          TWILIO_ACCOUNT_SID: !Ref TwilioAccountSid
+          TWILIO_AUTH_TOKEN: !Ref TwilioAuthToken
+          TWILIO_FROM_NUMBER: !Ref TwilioFromNumber
+          CAREGIVER_PHONE_NUMBER: !Ref CaregiverPhoneNumber
+      Code:
+        # We will deploy the zip file containing code and Twilio library separately, 
+        # but for placeholder here we expect it to be updated or deployed via SAM/CLI.
+        ZipFile: |
+          import json
+          def lambda_handler(event, context):
+              pass # Deployed via deployment script
+
+  # Lambda Event Source Mapping (DynamoDB Stream Trigger)
+  DynamoDBEventSourceMapping:
+    Type: AWS::Lambda::EventSourceMapping
+    Properties:
+      BatchSize: 10
+      Enabled: true
+      EventSourceArn: !GetAtt AutiGuardSensorDataTable.StreamArn
+      FunctionName: !GetAtt AlertProcessorLambda.Arn
+      StartingPosition: LATEST
+
+  # Permission for IoT to invoke Lambda directly
+  IoTLambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref AlertProcessorLambda
+      Action: lambda:InvokeFunction
+      Principal: iot.amazonaws.com
+
+Outputs:
+  DynamoDBTableName:
+    Description: Table Name of Sensor Data
+    Value: !Ref AutiGuardSensorDataTable
+  LambdaFunctionName:
+    Description: Name of the Alert Processor Lambda
+    Value: !Ref AlertProcessorLambda

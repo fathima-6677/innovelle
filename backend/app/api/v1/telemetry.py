@@ -4,6 +4,10 @@ from app.core.dynamodb import db
 from app.schemas.telemetry import TelemetryBatch, TelemetryItem
 from app.services.geofence_service import geofence_service
 from app.services.notification_service import notification_service
+from app.services.dynamodb_sensor_service import sensor_db_service
+from app.services.ml_service import ml_service
+from pydantic import BaseModel
+from typing import Optional
 import datetime
 
 router = APIRouter(prefix="/telemetry", tags=["telemetry"])
@@ -201,3 +205,43 @@ def get_telemetry(wearer_id: str, range: str = "24h", current_user: dict = Depen
     # Sort chronologically
     filtered_readings.sort(key=lambda x: x["timestamp"])
     return filtered_readings
+
+# ── New Sensor Data Endpoints ─────────────────────────────────────────────────
+
+class SensorDataResponse(BaseModel):
+    device_id: str
+    timestamp: int
+    heart_rate: Optional[int] = None
+    stress_score: Optional[int] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    fall_detected: Optional[bool] = None
+    sound_alert: Optional[bool] = None
+
+@router.get("/latest/{device_id}", response_model=SensorDataResponse)
+def get_telemetry_latest_by_device(device_id: str):
+    """Fetch the absolute newest sensor reading from DynamoDB"""
+    try:
+        data = sensor_db_service.get_latest_sensor_data(device_id)
+        if not data:
+            raise HTTPException(status_code=404, detail="Sensor data not found")
+        
+        # ML Integration: Predict stress score if missing
+        if data.get('stress_score') is None:
+            hr = data.get('heart_rate', 70)
+            score = ml_service.predict_stress(heart_rate=hr)
+            if score is not None:
+                data['stress_score'] = score
+                sensor_db_service.update_stress_score(device_id, int(data['timestamp']), score)
+                
+        return data
+    except Exception as e:
+        if isinstance(e, HTTPException):
+            raise e
+        raise HTTPException(status_code=500, detail="Internal server error while fetching sensor data")
+
+@router.get("/history/{device_id}", response_model=list[SensorDataResponse])
+def get_telemetry_history_by_device(device_id: str):
+    """Fetch recent sensor history (up to 100 items) from DynamoDB"""
+    data = sensor_db_service.get_sensor_history(device_id, limit=100)
+    return data

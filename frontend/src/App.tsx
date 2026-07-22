@@ -5,6 +5,7 @@ import './App.css';
 
 const Login = lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Dashboard = lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
+const AlertHistory = lazy(() => import('./pages/AlertHistory').then(m => ({ default: m.AlertHistory })));
 const WearerProfile = lazy(() => import('./pages/WearerProfile').then(m => ({ default: m.WearerProfile })));
 const GeofenceEditor = lazy(() => import('./pages/GeofenceEditor').then(m => ({ default: m.GeofenceEditor })));
 const CommAssistLogs = lazy(() => import('./pages/CommAssistLogs').then(m => ({ default: m.CommAssistLogs })));
@@ -64,6 +65,8 @@ function App() {
     switch (currentPage) {
       case 'dashboard':
         return <Dashboard />;
+      case 'alert-history':
+        return <AlertHistory />;
       case 'profile':
         return <WearerProfile />;
       case 'geofence':

@@ -12,6 +12,7 @@
   "dependencies": {
     "@tanstack/react-query": "^5.17.19",
     "aws-amplify": "^6.18.0",
+    "axios": "^1.18.1",
     "clsx": "^2.1.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.309.0",

@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, Users, User, Map, MessageSquare, LineChart, Settings, LogOut, X } from 'lucide-react';
+import { LayoutDashboard, Users, User, Map, MessageSquare, LineChart, Settings, LogOut, X, ShieldAlert } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 
 interface SidebarProps {
@@ -12,6 +12,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ currentPage, setCurrentPage })
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, roles: ['caregiver', 'org_admin', 'super_admin'] },
+    { id: 'alert-history', label: 'Alert History', icon: ShieldAlert, roles: ['caregiver', 'org_admin', 'super_admin'] },
     { id: 'profile', label: 'Wearers', icon: User, roles: ['caregiver', 'org_admin', 'super_admin'] },
     { id: 'geofence', label: 'Geofencing', icon: Map, roles: ['caregiver', 'org_admin', 'super_admin'] },
     { id: 'comms', label: 'Comm Assist Logs', icon: MessageSquare, roles: ['caregiver', 'org_admin', 'super_admin'] },
